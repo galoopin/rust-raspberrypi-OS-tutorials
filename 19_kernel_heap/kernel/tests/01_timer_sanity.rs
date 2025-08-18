@@ -12,7 +12,6 @@
 
 use core::time::Duration;
 use libkernel::{bsp, cpu, exception, memory, time};
-use test_macros::kernel_test;
 
 #[no_mangle]
 unsafe fn kernel_init() -> ! {
@@ -27,25 +26,31 @@ unsafe fn kernel_init() -> ! {
     cpu::qemu_exit_success()
 }
 
-/// Simple check that the timer is running.
-#[kernel_test]
-fn timer_is_counting() {
-    assert!(time::time_manager().uptime().as_nanos() > 0)
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test_macros::kernel_test;
 
-/// Timer resolution must be sufficient.
-#[kernel_test]
-fn timer_resolution_is_sufficient() {
-    assert!(time::time_manager().resolution().as_nanos() > 0);
-    assert!(time::time_manager().resolution().as_nanos() < 100)
-}
+    /// Simple check that the timer is running.
+    #[kernel_test]
+    fn timer_is_counting() {
+        assert!(time::time_manager().uptime().as_nanos() > 0)
+    }
 
-/// Sanity check spin_for() implementation.
-#[kernel_test]
-fn spin_accuracy_check_1_second() {
-    let t1 = time::time_manager().uptime();
-    time::time_manager().spin_for(Duration::from_secs(1));
-    let t2 = time::time_manager().uptime();
+    /// Timer resolution must be sufficient.
+    #[kernel_test]
+    fn timer_resolution_is_sufficient() {
+        assert!(time::time_manager().resolution().as_nanos() > 0);
+        assert!(time::time_manager().resolution().as_nanos() < 100)
+    }
 
-    assert_eq!((t2 - t1).as_secs(), 1)
+    /// Sanity check spin_for() implementation.
+    #[kernel_test]
+    fn spin_accuracy_check_1_second() {
+        let t1 = time::time_manager().uptime();
+        time::time_manager().spin_for(Duration::from_secs(1));
+        let t2 = time::time_manager().uptime();
+
+        assert_eq!((t2 - t1).as_secs(), 1)
+    }
 }
