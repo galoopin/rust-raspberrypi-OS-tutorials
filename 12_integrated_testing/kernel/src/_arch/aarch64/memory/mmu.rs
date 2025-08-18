@@ -134,13 +134,16 @@ impl memory::mmu::interface::MMU for MemoryManagementUnit {
         // Prepare the memory attribute indirection register.
         self.set_up_mair();
 
-        // Populate translation tables.
-        KERNEL_TABLES
-            .populate_tt_entries()
-            .map_err(MMUEnableError::Other)?;
+        // create a raw pointer
+        let raw_ptr = &raw mut KERNEL_TABLES;
+        // Dereference the raw pointer to get a reference
+        let kernel_tables = &mut *raw_ptr;
 
-        // Set the "Translation Table Base Register".
-        TTBR0_EL1.set_baddr(KERNEL_TABLES.phys_base_address());
+        // Populate translation tables.
+        kernel_tables.populate_tt_entries().map_err(MMUEnableError::Other)?;
+
+        // Set the "Translation Table Base Register"
+        TTBR0_EL1.set_baddr(kernel_tables.phys_base_address());
 
         self.configure_translation_control();
 
