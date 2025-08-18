@@ -219,3 +219,12 @@ where
         });
     }
 }
+
+impl<T> Default for DriverManager<T>
+where
+    T: fmt::Display + Copy,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
