@@ -167,6 +167,12 @@ impl TimeManager {
     }
 }
 
+impl Default for TimeManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Initialize the timer subsystem.
 pub fn init() -> Result<(), &'static str> {
     static INIT_DONE: AtomicBool = AtomicBool::new(false);
