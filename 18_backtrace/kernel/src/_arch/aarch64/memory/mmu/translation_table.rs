@@ -438,7 +438,8 @@ impl<const NUM_TABLES: usize, const START_FROM_TOP: bool>
             return Err("Tried to map outside of physical address space");
         }
 
-        let iter = phys_region.into_iter().zip(virt_region.into_iter());
+        let iter = phys_region.into_iter().zip(*virt_region);
+
         for (phys_page_addr, virt_page_addr) in iter {
             let new_desc = PageDescriptor::from_output_page_addr(phys_page_addr, attr);
             let virt_page = virt_page_addr;
