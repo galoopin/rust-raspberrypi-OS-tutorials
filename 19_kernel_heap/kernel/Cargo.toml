@@ -11,6 +11,12 @@ bsp_rpi3 = ["tock-registers"]
 bsp_rpi4 = ["tock-registers"]
 test_build = ["qemu-exit"]
 
+[lints.rust]
+dead_code = "allow"
+incomplete_include = "allow"
+internal_features = "allow"
+unused_imports = "allow"
+
 ##--------------------------------------------------------------------------------------------------
 ## Dependencies
 ##--------------------------------------------------------------------------------------------------
