@@ -165,3 +165,9 @@ impl DriverManager {
         });
     }
 }
+
+impl Default for DriverManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
