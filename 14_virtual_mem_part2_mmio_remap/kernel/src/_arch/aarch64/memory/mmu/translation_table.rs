@@ -318,6 +318,12 @@ impl<const NUM_TABLES: usize> FixedSizeTranslationTable<NUM_TABLES> {
     }
 }
 
+impl<const NUM_TABLES: usize> Default for FixedSizeTranslationTable<NUM_TABLES> {
+    fn default() -> Self {
+        Self::new()
+    }
+ }
+
 //------------------------------------------------------------------------------
 // OS Interface Code
 //------------------------------------------------------------------------------
