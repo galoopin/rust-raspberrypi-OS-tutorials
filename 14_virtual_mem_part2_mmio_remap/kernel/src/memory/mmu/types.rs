@@ -118,16 +118,16 @@ impl<ATYPE: AddressType> From<Address<ATYPE>> for PageAddress<ATYPE> {
 }
 
 impl<ATYPE: AddressType> Step for PageAddress<ATYPE> {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
+    fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
         if start > end {
-            return None;
+            return (0, None);
         }
 
         // Since start <= end, do unchecked arithmetic.
-        Some(
-            (end.inner.as_usize() - start.inner.as_usize())
-                >> bsp::memory::mmu::KernelGranule::SHIFT,
-        )
+        let distance_bytes = end.inner.as_usize() - start.inner.as_usize();
+        let steps = distance_bytes >> bsp::memory::mmu::KernelGranule::SHIFT;
+
+        (steps, Some(steps))
     }
 
     fn forward_checked(start: Self, count: usize) -> Option<Self> {
@@ -193,7 +193,9 @@ impl<ATYPE: AddressType> MemoryRegion<ATYPE> {
 
     /// Returns the number of pages contained in this region.
     pub fn num_pages(&self) -> usize {
-        PageAddress::steps_between(&self.start, &self.end_exclusive).unwrap()
+        let (steps, maybe_steps) = PageAddress::steps_between(&self.start, &self.end_exclusive);
+
+        maybe_steps.unwrap_or(steps)
     }
 
     /// Returns the size in bytes of this region.
@@ -335,7 +337,9 @@ mod tests {
 
         let zero = PageAddress::<Virtual>::from(0);
         let three = PageAddress::<Virtual>::from(bsp::memory::mmu::KernelGranule::SIZE * 3);
-        assert_eq!(PageAddress::steps_between(&zero, &three), Some(3));
+        let (steps, maybe_steps) = PageAddress::steps_between(&zero, &three);
+
+        assert_eq!(maybe_steps.unwrap_or(steps), 3);
     }
 
     /// Sanity of [MemoryRegion] methods.
