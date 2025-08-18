@@ -102,6 +102,12 @@ impl HeapAllocator {
     }
 }
 
+impl Default for HeapAllocator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 unsafe impl GlobalAlloc for HeapAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let result = KERNEL_HEAP_ALLOCATOR
