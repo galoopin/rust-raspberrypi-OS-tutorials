@@ -2,7 +2,7 @@
 name = "mingo"
 version = "0.6.0"
 authors = ["Andre Richter <andre.o.richter@gmail.com>"]
-edition = "2021"
+edition = "2024"
 
 [profile.release]
 lto = true
@@ -26,7 +26,9 @@ dead_code = "allow"
 [dependencies]
 
 # Optional dependencies
-tock-registers = { version = "0.8.x", default-features = false, features = ["register_types"], optional = true }
+tock-registers = { version = "0.8.x", default-features = false, features = [
+    "register_types",
+], optional = true }
 
 # Platform specific dependencies
 [target.'cfg(target_arch = "aarch64")'.dependencies]

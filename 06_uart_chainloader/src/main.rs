@@ -126,7 +126,7 @@ mod synchronization;
 ///
 /// - Only a single core must be active and running this function.
 /// - The init calls in this function must appear in the correct order.
-unsafe fn kernel_init() -> ! {
+unsafe fn kernel_init() -> ! { unsafe {
     // Initialize the BSP driver subsystem.
     if let Err(x) = bsp::driver::init() {
         panic!("Error initializing BSP driver subsystem: {}", x);
@@ -138,7 +138,7 @@ unsafe fn kernel_init() -> ! {
 
     // Transition from unsafe to safe.
     kernel_main()
-}
+}}
 
 const MINILOAD_LOGO: &str = r#"
  __  __ _      _ _                 _
