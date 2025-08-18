@@ -191,7 +191,10 @@ mod tests {
                 end: __bss_end_exclusive.get(),
             }
         };
-        let kernel_tables_addr = unsafe { &KERNEL_TABLES as *const _ as usize as *mut u64 };
+
+        let raw_ptr = &raw const KERNEL_TABLES;
+
+        let kernel_tables_addr = raw_ptr as usize as *mut u64;
 
         assert!(bss_range.contains(&kernel_tables_addr));
     }
