@@ -119,7 +119,7 @@ pub fn mmu() -> &'static impl memory::mmu::interface::MMU {
 use memory::mmu::MMUEnableError;
 
 impl memory::mmu::interface::MMU for MemoryManagementUnit {
-    unsafe fn enable_mmu_and_caching(&self) -> Result<(), MMUEnableError> {
+    unsafe fn enable_mmu_and_caching(&self) -> Result<(), MMUEnableError> { unsafe {
         if unlikely(self.is_enabled()) {
             return Err(MMUEnableError::AlreadyEnabled);
         }
@@ -159,7 +159,7 @@ impl memory::mmu::interface::MMU for MemoryManagementUnit {
         barrier::isb(barrier::SY);
 
         Ok(())
-    }
+    }}
 
     #[inline(always)]
     fn is_enabled(&self) -> bool {
