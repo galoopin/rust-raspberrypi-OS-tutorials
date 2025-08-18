@@ -79,7 +79,7 @@ fn panic(info: &PanicInfo) -> ! {
         location,
         line,
         column,
-        info.message().unwrap_or(&format_args!("")),
+        info.message(),
     );
 
     _panic_exit()
