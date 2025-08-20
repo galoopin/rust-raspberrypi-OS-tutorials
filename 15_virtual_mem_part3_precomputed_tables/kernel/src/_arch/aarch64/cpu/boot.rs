@@ -75,11 +75,11 @@ unsafe fn prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr:
 /// # Safety
 ///
 /// - Exception return from EL2 must must continue execution in EL1 with `kernel_init()`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn _start_rust(
     phys_kernel_tables_base_addr: u64,
     phys_boot_core_stack_end_exclusive_addr: u64,
-) -> ! {
+) -> ! { unsafe {
     prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr);
 
     // Turn on the MMU for EL1.
@@ -88,4 +88,4 @@ pub unsafe extern "C" fn _start_rust(
 
     // Use `eret` to "return" to EL1. This results in execution of kernel_init() in EL1.
     asm::eret()
-}
+}}

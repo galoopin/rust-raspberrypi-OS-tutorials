@@ -90,14 +90,14 @@ unsafe fn kernel_map_at_unchecked(
     virt_region: &MemoryRegion<Virtual>,
     phys_region: &MemoryRegion<Physical>,
     attr: &AttributeFields,
-) -> Result<(), &'static str> {
+) -> Result<(), &'static str> { unsafe {
     bsp::memory::mmu::kernel_translation_tables()
         .write(|tables| tables.map_at(virt_region, phys_region, attr))?;
 
     kernel_add_mapping_record(name, virt_region, phys_region, attr);
 
     Ok(())
-}
+}}
 
 /// Try to translate a kernel virtual address to a physical address.
 ///
@@ -186,7 +186,7 @@ pub fn kernel_add_mapping_record(
 pub unsafe fn kernel_map_mmio(
     name: &'static str,
     mmio_descriptor: &MMIODescriptor,
-) -> Result<Address<Virtual>, &'static str> {
+) -> Result<Address<Virtual>, &'static str> { unsafe {
     let phys_region = MemoryRegion::from(*mmio_descriptor);
     let offset_into_start_page = mmio_descriptor.start_addr().offset_into_page();
 
@@ -220,7 +220,7 @@ pub unsafe fn kernel_map_mmio(
     };
 
     Ok(virt_addr + offset_into_start_page)
-}
+}}
 
 /// Try to translate a kernel virtual page address to a physical page address.
 ///
@@ -255,6 +255,6 @@ pub fn kernel_print_mappings() {
 #[inline(always)]
 pub unsafe fn enable_mmu_and_caching(
     phys_tables_base_addr: Address<Physical>,
-) -> Result<(), MMUEnableError> {
+) -> Result<(), MMUEnableError> { unsafe {
     arch_mmu::mmu().enable_mmu_and_caching(phys_tables_base_addr)
-}
+}}
