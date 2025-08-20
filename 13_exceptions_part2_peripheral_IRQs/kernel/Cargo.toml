@@ -2,7 +2,7 @@
 name = "mingo"
 version = "0.13.0"
 authors = ["Andre Richter <andre.o.richter@gmail.com>"]
-edition = "2021"
+edition = "2024"
 
 [features]
 default = []
@@ -21,7 +21,9 @@ internal_features = "allow"
 test-types = { path = "../libraries/test-types" }
 
 # Optional dependencies
-tock-registers = { version = "0.8.x", default-features = false, features = ["register_types"], optional = true }
+tock-registers = { version = "0.8.x", default-features = false, features = [
+    "register_types",
+], optional = true }
 qemu-exit = { version = "3.x.x", optional = true }
 
 # Platform specific dependencies

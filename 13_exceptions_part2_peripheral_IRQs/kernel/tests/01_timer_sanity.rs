@@ -13,9 +13,11 @@
 use core::time::Duration;
 use libkernel::{bsp, cpu, exception, time};
 
-#[no_mangle]
-unsafe fn kernel_init() -> ! {
-    exception::handling_init();
+#[unsafe(no_mangle)]
+fn kernel_init() -> ! {
+    unsafe {
+        exception::handling_init();
+    }
     bsp::driver::qemu_bring_up_console();
 
     // Depending on CPU arch, some timer bring-up code could go here. Not needed for the RPi.

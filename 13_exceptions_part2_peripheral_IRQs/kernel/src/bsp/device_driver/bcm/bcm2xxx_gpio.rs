@@ -131,11 +131,11 @@ impl GPIOInner {
     /// # Safety
     ///
     /// - The user must ensure to provide a correct MMIO start address.
-    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
+    pub const unsafe fn new(mmio_start_addr: usize) -> Self { unsafe {
         Self {
             registers: Registers::new(mmio_start_addr),
         }
-    }
+    }}
 
     /// Disable pull-up/down on pins 14 and 15.
     #[cfg(feature = "bsp_rpi3")]
@@ -198,11 +198,11 @@ impl GPIO {
     /// # Safety
     ///
     /// - The user must ensure to provide a correct MMIO start address.
-    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
+    pub const unsafe fn new(mmio_start_addr: usize) -> Self { unsafe {
         Self {
             inner: IRQSafeNullLock::new(GPIOInner::new(mmio_start_addr)),
         }
-    }
+    }}
 
     /// Concurrency safe version of `GPIOInner.map_pl011_uart()`
     pub fn map_pl011_uart(&self) {
