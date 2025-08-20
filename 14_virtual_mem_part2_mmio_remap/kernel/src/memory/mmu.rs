@@ -97,7 +97,7 @@ unsafe fn kernel_map_at_unchecked(
     virt_region: &MemoryRegion<Virtual>,
     phys_region: &MemoryRegion<Physical>,
     attr: &AttributeFields,
-) -> Result<(), &'static str> {
+) -> Result<(), &'static str> { unsafe {
     bsp::memory::mmu::kernel_translation_tables()
         .write(|tables| tables.map_at(virt_region, phys_region, attr))?;
 
@@ -106,7 +106,7 @@ unsafe fn kernel_map_at_unchecked(
     }
 
     Ok(())
-}
+}}
 
 //--------------------------------------------------------------------------------------------------
 // Public Code
@@ -168,7 +168,7 @@ pub unsafe fn kernel_map_at(
     virt_region: &MemoryRegion<Virtual>,
     phys_region: &MemoryRegion<Physical>,
     attr: &AttributeFields,
-) -> Result<(), &'static str> {
+) -> Result<(), &'static str> { unsafe {
     if bsp::memory::mmu::virt_mmio_remap_region().overlaps(virt_region) {
         return Err("Attempt to manually map into MMIO region");
     }
@@ -176,7 +176,7 @@ pub unsafe fn kernel_map_at(
     kernel_map_at_unchecked(name, virt_region, phys_region, attr)?;
 
     Ok(())
-}
+}}
 
 /// MMIO remapping in the kernel translation tables.
 ///
@@ -188,7 +188,7 @@ pub unsafe fn kernel_map_at(
 pub unsafe fn kernel_map_mmio(
     name: &'static str,
     mmio_descriptor: &MMIODescriptor,
-) -> Result<Address<Virtual>, &'static str> {
+) -> Result<Address<Virtual>, &'static str> { unsafe {
     let phys_region = MemoryRegion::from(*mmio_descriptor);
     let offset_into_start_page = mmio_descriptor.start_addr().offset_into_page();
 
@@ -222,14 +222,14 @@ pub unsafe fn kernel_map_mmio(
     };
 
     Ok(virt_addr + offset_into_start_page)
-}
+}}
 
 /// Map the kernel's binary. Returns the translation table's base address.
 ///
 /// # Safety
 ///
 /// - See [`bsp::memory::mmu::kernel_map_binary()`].
-pub unsafe fn kernel_map_binary() -> Result<Address<Physical>, &'static str> {
+pub unsafe fn kernel_map_binary() -> Result<Address<Physical>, &'static str> { unsafe {
     let phys_kernel_tables_base_addr =
         bsp::memory::mmu::kernel_translation_tables().write(|tables| {
             tables.init();
@@ -239,7 +239,7 @@ pub unsafe fn kernel_map_binary() -> Result<Address<Physical>, &'static str> {
     bsp::memory::mmu::kernel_map_binary()?;
 
     Ok(phys_kernel_tables_base_addr)
-}
+}}
 
 /// Enable the MMU and data + instruction caching.
 ///
@@ -248,9 +248,9 @@ pub unsafe fn kernel_map_binary() -> Result<Address<Physical>, &'static str> {
 /// - Crucial function during kernel init. Changes the the complete memory view of the processor.
 pub unsafe fn enable_mmu_and_caching(
     phys_tables_base_addr: Address<Physical>,
-) -> Result<(), MMUEnableError> {
+) -> Result<(), MMUEnableError> { unsafe {
     arch_mmu::mmu().enable_mmu_and_caching(phys_tables_base_addr)
-}
+}}
 
 /// Finish initialization of the MMU subsystem.
 pub fn post_enable_init() {

@@ -126,7 +126,7 @@ pub fn virt_mmio_remap_region() -> MemoryRegion<Virtual> {
 /// # Safety
 ///
 /// - Any miscalculation or attribute error will likely be fatal. Needs careful manual checking.
-pub unsafe fn kernel_map_binary() -> Result<(), &'static str> {
+pub unsafe fn kernel_map_binary() -> Result<(), &'static str> { unsafe {
     generic_mmu::kernel_map_at(
         "Kernel boot-core stack",
         &virt_boot_core_stack_region(),
@@ -161,7 +161,7 @@ pub unsafe fn kernel_map_binary() -> Result<(), &'static str> {
     )?;
 
     Ok(())
-}
+}}
 
 //--------------------------------------------------------------------------------------------------
 // Testing
@@ -211,7 +211,7 @@ mod tests {
     /// Check if KERNEL_TABLES is in .bss.
     #[kernel_test]
     fn kernel_tables_in_bss() {
-        extern "Rust" {
+        unsafe extern "Rust" {
             static __bss_start: UnsafeCell<u64>;
             static __bss_end_exclusive: UnsafeCell<u64>;
         }
