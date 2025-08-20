@@ -78,12 +78,12 @@ unsafe fn prepare_el2_to_el1_transition(
 /// # Safety
 ///
 /// - Exception return from EL2 must must continue execution in EL1 with `kernel_init()`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn _start_rust(
     phys_kernel_tables_base_addr: u64,
     virt_boot_core_stack_end_exclusive_addr: u64,
     virt_kernel_init_addr: u64,
-) -> ! {
+) -> ! { unsafe {
     prepare_el2_to_el1_transition(
         virt_boot_core_stack_end_exclusive_addr,
         virt_kernel_init_addr,
@@ -96,4 +96,4 @@ pub unsafe extern "C" fn _start_rust(
     // Use `eret` to "return" to EL1. Since virtual memory will already be enabled, this results in
     // execution of kernel_init() in EL1 from its _virtual address_.
     asm::eret()
-}
+}}

@@ -19,9 +19,11 @@ mod panic_exit_success;
 
 use libkernel::{bsp, cpu, exception, info, memory, println};
 
-#[no_mangle]
-unsafe fn kernel_init() -> ! {
-    exception::handling_init();
+#[unsafe(no_mangle)]
+fn kernel_init() -> ! {
+    unsafe {
+        exception::handling_init();
+    }
     memory::init();
     bsp::driver::qemu_bring_up_console();
 
@@ -30,7 +32,9 @@ unsafe fn kernel_init() -> ! {
 
     info!("Writing to bottom of address space to address 1 GiB...");
     let big_addr: u64 = 1024 * 1024 * 1024;
-    core::ptr::read_volatile(big_addr as *mut u64);
+    unsafe {
+        core::ptr::read_volatile(big_addr as *mut u64);
+    }
 
     // If execution reaches here, the memory access above did not cause a page fault exception.
     cpu::qemu_exit_failure()
