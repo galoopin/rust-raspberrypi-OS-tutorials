@@ -13,11 +13,13 @@ mod panic_wait_forever;
 
 use libkernel::{bsp, console, cpu, exception, print};
 
-#[no_mangle]
-unsafe fn kernel_init() -> ! {
+#[unsafe(no_mangle)]
+fn kernel_init() -> ! {
     use console::console;
 
-    exception::handling_init();
+    unsafe {
+        exception::handling_init();
+    }
     bsp::driver::qemu_bring_up_console();
 
     // Handshake

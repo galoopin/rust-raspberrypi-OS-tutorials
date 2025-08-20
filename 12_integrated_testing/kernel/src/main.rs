@@ -24,8 +24,8 @@ use libkernel::{bsp, console, driver, exception, info, memory, time};
 ///     - MMU + Data caching must be activated at the earliest. Without it, any atomic operations,
 ///       e.g. the yet-to-be-introduced spinlocks in the device drivers (which currently employ
 ///       NullLocks instead of spinlocks), will fail to work (properly) on the RPi SoCs.
-#[no_mangle]
-unsafe fn kernel_init() -> ! {
+#[unsafe(no_mangle)]
+unsafe fn kernel_init() -> ! { unsafe {
     use memory::mmu::interface::MMU;
 
     exception::handling_init();
@@ -45,7 +45,7 @@ unsafe fn kernel_init() -> ! {
 
     // Transition from unsafe to safe.
     kernel_main()
-}
+}}
 
 /// The main function running after the early init.
 fn kernel_main() -> ! {
