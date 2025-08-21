@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! IRQ handling sanity tests.
 
@@ -11,18 +11,19 @@
 #![test_runner(libkernel::test_runner)]
 
 use libkernel::{bsp, cpu, exception, memory};
-use test_macros::kernel_test;
 
-#[no_mangle]
-unsafe fn kernel_init() -> ! {
-    exception::handling_init();
+#[unsafe(no_mangle)]
+fn kernel_init() -> ! {
+    unsafe {
+        exception::handling_init();
+    }
 
-    let phys_kernel_tables_base_addr = match memory::mmu::kernel_map_binary() {
+    let phys_kernel_tables_base_addr = match unsafe { memory::mmu::kernel_map_binary() } {
         Err(string) => panic!("Error mapping kernel binary: {}", string),
         Ok(addr) => addr,
     };
 
-    if let Err(e) = memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) {
+    if let Err(e) = unsafe { memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) } {
         panic!("Enabling MMU failed: {}", e);
     }
 
@@ -36,42 +37,48 @@ unsafe fn kernel_init() -> ! {
     cpu::qemu_exit_success()
 }
 
-/// Check that IRQ masking works.
-#[kernel_test]
-fn local_irq_mask_works() {
-    // Precondition: IRQs are unmasked.
-    assert!(exception::asynchronous::is_local_irq_masked());
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test_macros::kernel_test;
 
-    exception::asynchronous::local_irq_mask();
-    assert!(!exception::asynchronous::is_local_irq_masked());
+    /// Check that IRQ masking works.
+    #[kernel_test]
+    fn local_irq_mask_works() {
+        // Precondition: IRQs are unmasked.
+        assert!(exception::asynchronous::is_local_irq_masked());
 
-    // Restore earlier state.
-    exception::asynchronous::local_irq_unmask();
-}
+        exception::asynchronous::local_irq_mask();
+        assert!(!exception::asynchronous::is_local_irq_masked());
 
-/// Check that IRQ unmasking works.
-#[kernel_test]
-fn local_irq_unmask_works() {
-    // Precondition: IRQs are masked.
-    exception::asynchronous::local_irq_mask();
-    assert!(!exception::asynchronous::is_local_irq_masked());
+        // Restore earlier state.
+        exception::asynchronous::local_irq_unmask();
+    }
 
-    exception::asynchronous::local_irq_unmask();
-    assert!(exception::asynchronous::is_local_irq_masked());
-}
+    /// Check that IRQ unmasking works.
+    #[kernel_test]
+    fn local_irq_unmask_works() {
+        // Precondition: IRQs are masked.
+        exception::asynchronous::local_irq_mask();
+        assert!(!exception::asynchronous::is_local_irq_masked());
 
-/// Check that IRQ mask save is saving "something".
-#[kernel_test]
-fn local_irq_mask_save_works() {
-    // Precondition: IRQs are unmasked.
-    assert!(exception::asynchronous::is_local_irq_masked());
+        exception::asynchronous::local_irq_unmask();
+        assert!(exception::asynchronous::is_local_irq_masked());
+    }
 
-    let first = exception::asynchronous::local_irq_mask_save();
-    assert!(!exception::asynchronous::is_local_irq_masked());
+    /// Check that IRQ mask save is saving "something".
+    #[kernel_test]
+    fn local_irq_mask_save_works() {
+        // Precondition: IRQs are unmasked.
+        assert!(exception::asynchronous::is_local_irq_masked());
 
-    let second = exception::asynchronous::local_irq_mask_save();
-    assert_ne!(first, second);
+        let first = exception::asynchronous::local_irq_mask_save();
+        assert!(!exception::asynchronous::is_local_irq_masked());
 
-    exception::asynchronous::local_irq_restore(first);
-    assert!(exception::asynchronous::is_local_irq_masked());
+        let second = exception::asynchronous::local_irq_mask_save();
+        assert_ne!(first, second);
+
+        exception::asynchronous::local_irq_restore(first);
+        assert!(exception::asynchronous::is_local_irq_masked());
+    }
 }

@@ -132,10 +132,10 @@ diff -uNr 05_drivers_gpio_uart/Cargo.toml 06_uart_chainloader/Cargo.toml
 -version = "0.5.0"
 +version = "0.6.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
-Binary files 05_drivers_gpio_uart/demo_payload_rpi3.img and 06_uart_chainloader/demo_payload_rpi3.img differ
-Binary files 05_drivers_gpio_uart/demo_payload_rpi4.img and 06_uart_chainloader/demo_payload_rpi4.img differ
+Les fichiers binaires 05_drivers_gpio_uart/demo_payload_rpi3.img et 06_uart_chainloader/demo_payload_rpi3.img sont différents
+Les fichiers binaires 05_drivers_gpio_uart/demo_payload_rpi4.img et 06_uart_chainloader/demo_payload_rpi4.img sont différents
 
 diff -uNr 05_drivers_gpio_uart/Makefile 06_uart_chainloader/Makefile
 --- 05_drivers_gpio_uart/Makefile
@@ -219,6 +219,15 @@ diff -uNr 05_drivers_gpio_uart/Makefile 06_uart_chainloader/Makefile
 
  all: $(KERNEL_BIN)
 
+@@ -150,7 +152,7 @@
+
+ ##------------------------------------------------------------------------------
+ ## Generate the documentation
+-##-----------------------------------------------------------------------------
++##------------------------------------------------------------------------------
+ doc:
+ 	$(call color_header, "Generating docs")
+ 	@$(DOC_CMD) --document-private-items --open
 @@ -160,7 +162,7 @@
  ##------------------------------------------------------------------------------
  ifeq ($(QEMU_MACHINE_TYPE),) # QEMU is not supported for the board.
@@ -237,6 +246,7 @@ diff -uNr 05_drivers_gpio_uart/Makefile 06_uart_chainloader/Makefile
 +	@$(DOCKER_QEMU) $(EXEC_QEMU) $(QEMU_RELEASE_ARGS) -kernel $(KERNEL_BIN) -d in_asm
 +
  endif
+
  ##------------------------------------------------------------------------------
 -## Connect to the target's serial
 +## Push the kernel to the real HW target
@@ -327,7 +337,7 @@ diff -uNr 05_drivers_gpio_uart/src/_arch/aarch64/cpu/boot.s 06_uart_chainloader/
 diff -uNr 05_drivers_gpio_uart/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs 06_uart_chainloader/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs
 --- 05_drivers_gpio_uart/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs
 +++ 06_uart_chainloader/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs
-@@ -275,7 +275,7 @@
+@@ -277,7 +277,7 @@
      }
 
      /// Retrieve a character.
@@ -336,7 +346,7 @@ diff -uNr 05_drivers_gpio_uart/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs 0
          // If RX FIFO is empty,
          if self.registers.FR.matches_all(FR::RXFE::SET) {
              // immediately return in non-blocking mode.
-@@ -290,12 +290,7 @@
+@@ -292,12 +292,7 @@
          }
 
          // Read one character.
@@ -350,7 +360,7 @@ diff -uNr 05_drivers_gpio_uart/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs 0
 
          // Update statistics.
          self.chars_read += 1;
-@@ -381,14 +376,14 @@
+@@ -385,14 +380,14 @@
  impl console::interface::Read for PL011Uart {
      fn read_char(&self) -> char {
          self.inner
@@ -374,7 +384,7 @@ diff -uNr 05_drivers_gpio_uart/src/bsp/raspberrypi/console.rs 06_uart_chainloade
 @@ -1,16 +0,0 @@
 -// SPDX-License-Identifier: MIT OR Apache-2.0
 -//
--// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+-// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 -
 -//! BSP console facilities.
 -
@@ -393,7 +403,7 @@ diff -uNr 05_drivers_gpio_uart/src/bsp/raspberrypi/kernel.ld 06_uart_chainloader
 --- 05_drivers_gpio_uart/src/bsp/raspberrypi/kernel.ld
 +++ 06_uart_chainloader/src/bsp/raspberrypi/kernel.ld
 @@ -3,8 +3,6 @@
-  * Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+  * Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
   */
 
 -__rpi_phys_dram_start_addr = 0;
@@ -466,15 +476,15 @@ diff -uNr 05_drivers_gpio_uart/src/driver.rs 06_uart_chainloader/src/driver.rs
 
 -use crate::{
 -    println,
--    synchronization::{interface::Mutex, NullLock},
+-    synchronization::{NullLock, interface::Mutex},
 -};
-+use crate::synchronization::{interface::Mutex, NullLock};
++use crate::synchronization::{NullLock, interface::Mutex};
 
  //--------------------------------------------------------------------------------------------------
  // Private Definitions
-@@ -154,14 +151,4 @@
-             }
-         });
+@@ -156,14 +153,4 @@
+             });
+         }
      }
 -
 -    /// Enumerate all registered device drivers.
@@ -492,7 +502,7 @@ diff -uNr 05_drivers_gpio_uart/src/main.rs 06_uart_chainloader/src/main.rs
 --- 05_drivers_gpio_uart/src/main.rs
 +++ 06_uart_chainloader/src/main.rs
 @@ -142,27 +142,55 @@
-     kernel_main()
+     }
  }
 
 +const MINILOAD_LOGO: &str = r#"
@@ -579,7 +589,7 @@ diff -uNr 05_drivers_gpio_uart/tests/chainboot_test.rb 06_uart_chainloader/tests
 +
 +# SPDX-License-Identifier: MIT OR Apache-2.0
 +#
-+# Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
++# Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +require_relative '../../common/serial/minipush'
 +require_relative '../../common/tests/boot_test'
@@ -641,14 +651,14 @@ diff -uNr 05_drivers_gpio_uart/tests/chainboot_test.rb 06_uart_chainloader/tests
 +
 +    # override
 +    def finish
-+        super()
++        super
 +        @test_output.map! { |x| x.gsub(/.*\r/, '  ') }
 +    end
 +end
 +
-+##--------------------------------------------------------------------------------------------------
++## -------------------------------------------------------------------------------------------------
 +## Execution starts here
-+##--------------------------------------------------------------------------------------------------
++## -------------------------------------------------------------------------------------------------
 +payload_path = ARGV.pop
 +qemu_cmd = ARGV.join(' ')
 +

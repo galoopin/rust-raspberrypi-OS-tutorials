@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: MIT OR Apache-2.0
 #
-# Copyright (c) 2021-2023 Andre Richter <andre.o.richter@gmail.com>
+# Copyright (c) 2021-2025 Andre Richter <andre.o.richter@gmail.com>
 
 # Bitfield manipulation.
 class BitField
@@ -14,7 +14,7 @@ class BitField
         define_method("#{name}=") do |bits|
             mask = (2**num_bits) - 1
 
-            raise "Input out of range: #{name} = 0x#{bits.to_s(16)}" if (bits & ~mask).positive?
+            raise "Input out of range: #{name} = 0x#{bits.to_s(16)}" if bits.anybits?(~mask)
 
             # Clear bitfield
             @value &= ~(mask << offset)

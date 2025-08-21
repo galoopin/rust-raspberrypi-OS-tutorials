@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Architectural timer primitives.
 //!
@@ -15,7 +15,7 @@
 use crate::warn;
 use aarch64_cpu::{asm::barrier, registers::*};
 use core::{
-    num::{NonZeroU128, NonZeroU32, NonZeroU64},
+    num::{NonZeroU32, NonZeroU64, NonZeroU128},
     ops::{Add, Div},
     time::Duration,
 };
@@ -36,7 +36,7 @@ struct GenericTimerCounterValue(u64);
 
 /// Boot assembly code overwrites this value with the value of CNTFRQ_EL0 before any Rust code is
 /// executed. This given value here is just a (safe) dummy.
-#[no_mangle]
+#[unsafe(no_mangle)]
 static ARCH_TIMER_COUNTER_FREQUENCY: NonZeroU32 = NonZeroU32::MIN;
 
 //--------------------------------------------------------------------------------------------------

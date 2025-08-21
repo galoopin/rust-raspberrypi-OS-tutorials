@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Driver support.
 
-use crate::synchronization::{interface::Mutex, NullLock};
+use crate::synchronization::{NullLock, interface::Mutex};
 
 //--------------------------------------------------------------------------------------------------
 // Private Definitions
@@ -129,26 +129,28 @@ impl DriverManager {
     ///
     /// - During init, drivers might do stuff with system-wide impact.
     pub unsafe fn init_drivers(&self) {
-        self.for_each_descriptor(|descriptor| {
-            // 1. Initialize driver.
-            if let Err(x) = descriptor.device_driver.init() {
-                panic!(
-                    "Error initializing driver: {}: {}",
-                    descriptor.device_driver.compatible(),
-                    x
-                );
-            }
+        unsafe {
+            self.for_each_descriptor(|descriptor| {
+                // 1. Initialize driver.
+                if let Err(x) = descriptor.device_driver.init() {
+                    panic!(
+                        "Error initializing driver: {}: {}",
+                        descriptor.device_driver.compatible(),
+                        x
+                    );
+                }
 
-            // 2. Call corresponding post init callback.
-            if let Some(callback) = &descriptor.post_init_callback {
-                if let Err(x) = callback() {
+                // 2. Call corresponding post init callback.
+                if let Some(callback) = &descriptor.post_init_callback
+                    && let Err(x) = callback()
+                {
                     panic!(
                         "Error during driver post-init callback: {}: {}",
                         descriptor.device_driver.compatible(),
                         x
                     );
                 }
-            }
-        });
+            });
+        }
     }
 }

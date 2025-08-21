@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 
 // Rust embedded logo for `make doc`.
 #![doc(
@@ -108,15 +108,10 @@
 
 #![allow(clippy::upper_case_acronyms)]
 #![allow(incomplete_features)]
-#![feature(asm_const)]
-#![feature(const_option)]
 #![feature(core_intrinsics)]
 #![feature(format_args_nl)]
 #![feature(int_roundings)]
-#![feature(nonzero_min_max)]
-#![feature(panic_info_message)]
 #![feature(trait_alias)]
-#![feature(unchecked_math)]
 #![no_main]
 #![no_std]
 
@@ -142,25 +137,27 @@ mod time;
 ///       e.g. the yet-to-be-introduced spinlocks in the device drivers (which currently employ
 ///       NullLocks instead of spinlocks), will fail to work (properly) on the RPi SoCs.
 unsafe fn kernel_init() -> ! {
-    use memory::mmu::interface::MMU;
+    unsafe {
+        use memory::mmu::interface::MMU;
 
-    exception::handling_init();
+        exception::handling_init();
 
-    if let Err(string) = memory::mmu::mmu().enable_mmu_and_caching() {
-        panic!("MMU: {}", string);
+        if let Err(string) = memory::mmu::mmu().enable_mmu_and_caching() {
+            panic!("MMU: {}", string);
+        }
+
+        // Initialize the BSP driver subsystem.
+        if let Err(x) = bsp::driver::init() {
+            panic!("Error initializing BSP driver subsystem: {}", x);
+        }
+
+        // Initialize all device drivers.
+        driver::driver_manager().init_drivers();
+        // println! is usable from here on.
+
+        // Transition from unsafe to safe.
+        kernel_main()
     }
-
-    // Initialize the BSP driver subsystem.
-    if let Err(x) = bsp::driver::init() {
-        panic!("Error initializing BSP driver subsystem: {}", x);
-    }
-
-    // Initialize all device drivers.
-    driver::driver_manager().init_drivers();
-    // println! is usable from here on.
-
-    // Transition from unsafe to safe.
-    kernel_main()
 }
 
 /// The main function running after the early init.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Asynchronous exception handling.
 
@@ -110,7 +110,7 @@ static CUR_IRQ_MANAGER: InitStateLock<
 //--------------------------------------------------------------------------------------------------
 // Public Code
 //--------------------------------------------------------------------------------------------------
-use synchronization::{interface::ReadWriteEx, InitStateLock};
+use synchronization::{InitStateLock, interface::ReadWriteEx};
 
 impl<T> IRQHandlerDescriptor<T>
 where

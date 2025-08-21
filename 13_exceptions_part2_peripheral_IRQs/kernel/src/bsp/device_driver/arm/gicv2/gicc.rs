@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! GICC Driver - GIC CPU interface.
 
@@ -75,7 +75,7 @@ impl GICC {
     /// - The user must ensure to provide a correct MMIO start address.
     pub const unsafe fn new(mmio_start_addr: usize) -> Self {
         Self {
-            registers: Registers::new(mmio_start_addr),
+            registers: unsafe { Registers::new(mmio_start_addr) },
         }
     }
 

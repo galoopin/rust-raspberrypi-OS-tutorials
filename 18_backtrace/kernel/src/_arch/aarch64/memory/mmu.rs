@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Memory Management Unit Driver.
 //!
@@ -15,7 +15,7 @@
 
 use crate::{
     bsp, memory,
-    memory::{mmu::TranslationGranule, Address, Physical},
+    memory::{Address, Physical, mmu::TranslationGranule},
 };
 use aarch64_cpu::{asm::barrier, registers::*};
 use core::intrinsics::unlikely;
@@ -56,7 +56,7 @@ impl<const AS_SIZE: usize> memory::mmu::AddressSpace<AS_SIZE> {
     /// Checks for architectural restrictions.
     pub const fn arch_address_space_size_sanity_checks() {
         // Size must be at least one full 512 MiB table.
-        assert!((AS_SIZE % Granule512MiB::SIZE) == 0);
+        assert!(AS_SIZE.is_multiple_of(Granule512MiB::SIZE));
 
         // Check for 48 bit virtual address size as maximum, which is supported by any ARMv8
         // version.

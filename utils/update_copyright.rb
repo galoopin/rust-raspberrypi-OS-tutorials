@@ -3,12 +3,12 @@
 
 # SPDX-License-Identifier: MIT OR Apache-2.0
 #
-# Copyright (c) 2021-2023 Andre Richter <andre.o.richter@gmail.com>
+# Copyright (c) 2021-2025 Andre Richter <andre.o.richter@gmail.com>
 
 require 'date'
 
 files = `git ls-files`.split("\n")
-files = files.delete_if { |f| File.symlink?(f) }
+files.delete_if { |f| File.symlink?(f) }
 files = files.join(' ')
 
 year = Date.today.year

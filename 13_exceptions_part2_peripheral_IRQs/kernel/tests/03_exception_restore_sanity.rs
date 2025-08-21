@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2022-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! A simple sanity test to see if exception restore code works.
 
@@ -28,17 +28,19 @@ fn nested_system_call() {
     }
 }
 
-#[no_mangle]
-unsafe fn kernel_init() -> ! {
+#[unsafe(no_mangle)]
+fn kernel_init() -> ! {
     use memory::mmu::interface::MMU;
 
-    exception::handling_init();
+    unsafe {
+        exception::handling_init();
+    }
     bsp::driver::qemu_bring_up_console();
 
     // This line will be printed as the test header.
     println!("Testing exception restore");
 
-    if let Err(string) = memory::mmu::mmu().enable_mmu_and_caching() {
+    if let Err(string) = unsafe { memory::mmu::mmu().enable_mmu_and_caching() } {
         info!("MMU: {}", string);
         cpu::qemu_exit_failure()
     }

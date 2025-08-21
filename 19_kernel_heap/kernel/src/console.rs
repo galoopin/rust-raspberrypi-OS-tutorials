@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! System console.
 
@@ -69,7 +69,7 @@ static CUR_CONSOLE: InitStateLock<&'static (dyn interface::All + Sync)> =
 //--------------------------------------------------------------------------------------------------
 // Public Code
 //--------------------------------------------------------------------------------------------------
-use synchronization::{interface::ReadWriteEx, InitStateLock};
+use synchronization::{InitStateLock, interface::ReadWriteEx};
 
 /// Register a new console.
 pub fn register_console(new_console: &'static (dyn interface::All + Sync)) {

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2019-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2019-2025 Andre Richter <andre.o.richter@gmail.com>
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
-use syn::{parse_macro_input, Ident, ItemFn};
+use syn::{Ident, ItemFn, parse_macro_input};
 
 #[proc_macro_attribute]
 pub fn kernel_test(_attr: TokenStream, input: TokenStream) -> TokenStream {

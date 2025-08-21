@@ -2,15 +2,15 @@
 
 # SPDX-License-Identifier: MIT OR Apache-2.0
 #
-# Copyright (c) 2022-2023 Andre Richter <andre.o.richter@gmail.com>
+# Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
 
 def generate_symbols(kernel_elf, output_file)
     File.open(output_file, 'w') do |file|
         header = <<~HEREDOC
             use debug_symbol_types::Symbol;
 
-            # [no_mangle]
-            # [link_section = ".rodata.symbol_desc"]
+            # [unsafe(no_mangle)]
+            # [unsafe(link_section = ".rodata.symbol_desc")]
             static KERNEL_SYMBOLS: [Symbol; #{kernel_elf.num_symbols}] = [
         HEREDOC
 

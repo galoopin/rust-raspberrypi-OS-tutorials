@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! A panic handler that infinitely waits.
 
@@ -15,7 +15,7 @@ use core::panic::PanicInfo;
 ///
 /// It is linked weakly, so that the integration tests can overload its standard behavior.
 #[linkage = "weak"]
-#[no_mangle]
+#[unsafe(no_mangle)]
 fn _panic_exit() -> ! {
     #[cfg(not(feature = "test_build"))]
     {
@@ -77,7 +77,7 @@ fn panic(info: &PanicInfo) -> ! {
         location,
         line,
         column,
-        info.message().unwrap_or(&format_args!("")),
+        info.message(),
     );
 
     _panic_exit()

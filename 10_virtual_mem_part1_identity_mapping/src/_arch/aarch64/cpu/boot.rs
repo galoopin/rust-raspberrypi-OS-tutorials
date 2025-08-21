@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2021-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2021-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Architectural boot code.
 //!
@@ -74,10 +74,12 @@ unsafe fn prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr:
 /// # Safety
 ///
 /// - Exception return from EL2 must must continue execution in EL1 with `kernel_init()`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn _start_rust(phys_boot_core_stack_end_exclusive_addr: u64) -> ! {
-    prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr);
+    unsafe {
+        prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr);
 
-    // Use `eret` to "return" to EL1. This results in execution of kernel_init() in EL1.
-    asm::eret()
+        // Use `eret` to "return" to EL1. This results in execution of kernel_init() in EL1.
+        asm::eret()
+    }
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2022-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! A simple sanity test to see if exception restore code works.
 
@@ -28,14 +28,16 @@ fn nested_system_call() {
     }
 }
 
-#[no_mangle]
-unsafe fn kernel_init() -> ! {
-    exception::handling_init();
+#[unsafe(no_mangle)]
+fn kernel_init() -> ! {
+    unsafe {
+        exception::handling_init();
+    }
 
     // This line will be printed as the test header.
     println!("Testing exception restore");
 
-    let phys_kernel_tables_base_addr = match memory::mmu::kernel_map_binary() {
+    let phys_kernel_tables_base_addr = match unsafe { memory::mmu::kernel_map_binary() } {
         Err(string) => {
             info!("Error mapping kernel binary: {}", string);
             cpu::qemu_exit_failure()
@@ -43,7 +45,7 @@ unsafe fn kernel_init() -> ! {
         Ok(addr) => addr,
     };
 
-    if let Err(e) = memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) {
+    if let Err(e) = unsafe { memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) } {
         info!("Enabling MMU failed: {}", e);
         cpu::qemu_exit_failure()
     }

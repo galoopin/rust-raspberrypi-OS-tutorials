@@ -64,7 +64,7 @@ diff -uNr 03_hacky_hello_world/Cargo.toml 04_safe_globals/Cargo.toml
 -version = "0.3.0"
 +version = "0.4.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
 
 diff -uNr 03_hacky_hello_world/src/bsp/raspberrypi/console.rs 04_safe_globals/src/bsp/raspberrypi/console.rs
@@ -236,15 +236,15 @@ diff -uNr 03_hacky_hello_world/src/console.rs 04_safe_globals/src/console.rs
 diff -uNr 03_hacky_hello_world/src/main.rs 04_safe_globals/src/main.rs
 --- 03_hacky_hello_world/src/main.rs
 +++ 04_safe_globals/src/main.rs
-@@ -109,6 +109,7 @@
- #![feature(asm_const)]
+@@ -107,6 +107,7 @@
+ //! 2. Once finished with architectural setup, the arch code calls `kernel_init()`.
+
  #![feature(format_args_nl)]
- #![feature(panic_info_message)]
 +#![feature(trait_alias)]
  #![no_main]
  #![no_std]
 
-@@ -117,6 +118,7 @@
+@@ -115,6 +116,7 @@
  mod cpu;
  mod panic_wait;
  mod print;
@@ -252,7 +252,7 @@ diff -uNr 03_hacky_hello_world/src/main.rs 04_safe_globals/src/main.rs
 
  /// Early init code.
  ///
-@@ -124,7 +126,12 @@
+@@ -122,7 +124,12 @@
  ///
  /// - Only a single core must be active and running this function.
  unsafe fn kernel_init() -> ! {
@@ -287,7 +287,7 @@ diff -uNr 03_hacky_hello_world/src/synchronization.rs 04_safe_globals/src/synchr
 @@ -0,0 +1,77 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! Synchronization primitives.
 +//!

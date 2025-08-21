@@ -206,13 +206,13 @@ diff -uNr 08_hw_debug_JTAG/Cargo.toml 09_privilege_level/Cargo.toml
 -version = "0.8.0"
 +version = "0.9.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
 
 diff -uNr 08_hw_debug_JTAG/src/_arch/aarch64/cpu/boot.rs 09_privilege_level/src/_arch/aarch64/cpu/boot.rs
 --- 08_hw_debug_JTAG/src/_arch/aarch64/cpu/boot.rs
 +++ 09_privilege_level/src/_arch/aarch64/cpu/boot.rs
-@@ -11,22 +11,73 @@
+@@ -11,22 +11,75 @@
  //!
  //! crate::cpu::boot::arch_boot
 
@@ -279,14 +279,16 @@ diff -uNr 08_hw_debug_JTAG/src/_arch/aarch64/cpu/boot.rs 09_privilege_level/src/
 +/// # Safety
 +///
 +/// - Exception return from EL2 must must continue execution in EL1 with `kernel_init()`.
- #[no_mangle]
+ #[unsafe(no_mangle)]
 -pub unsafe fn _start_rust() -> ! {
--    crate::kernel_init()
+-    unsafe { crate::kernel_init() }
 +pub unsafe extern "C" fn _start_rust(phys_boot_core_stack_end_exclusive_addr: u64) -> ! {
-+    prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr);
++    unsafe {
++        prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr);
 +
-+    // Use `eret` to "return" to EL1. This results in execution of kernel_init() in EL1.
-+    asm::eret()
++        // Use `eret` to "return" to EL1. This results in execution of kernel_init() in EL1.
++        asm::eret()
++    }
  }
 
 diff -uNr 08_hw_debug_JTAG/src/_arch/aarch64/cpu/boot.s 09_privilege_level/src/_arch/aarch64/cpu/boot.s
@@ -338,7 +340,7 @@ diff -uNr 08_hw_debug_JTAG/src/_arch/aarch64/exception/asynchronous.rs 09_privil
 @@ -0,0 +1,82 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! Architectural asynchronous exception handling.
 +//!
@@ -425,7 +427,7 @@ diff -uNr 08_hw_debug_JTAG/src/_arch/aarch64/exception.rs 09_privilege_level/src
 @@ -0,0 +1,31 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! Architectural synchronous and asynchronous exception handling.
 +//!
@@ -461,7 +463,7 @@ diff -uNr 08_hw_debug_JTAG/src/exception/asynchronous.rs 09_privilege_level/src/
 @@ -0,0 +1,14 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! Asynchronous exception handling.
 +
@@ -480,7 +482,7 @@ diff -uNr 08_hw_debug_JTAG/src/exception.rs 09_privilege_level/src/exception.rs
 @@ -0,0 +1,30 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! Synchronous and asynchronous exception handling.
 +
@@ -512,7 +514,7 @@ diff -uNr 08_hw_debug_JTAG/src/exception.rs 09_privilege_level/src/exception.rs
 diff -uNr 08_hw_debug_JTAG/src/main.rs 09_privilege_level/src/main.rs
 --- 08_hw_debug_JTAG/src/main.rs
 +++ 09_privilege_level/src/main.rs
-@@ -121,6 +121,7 @@
+@@ -116,6 +116,7 @@
  mod console;
  mod cpu;
  mod driver;
@@ -520,7 +522,7 @@ diff -uNr 08_hw_debug_JTAG/src/main.rs 09_privilege_level/src/main.rs
  mod panic_wait;
  mod print;
  mod synchronization;
-@@ -148,6 +149,7 @@
+@@ -145,6 +146,7 @@
 
  /// The main function running after the early init.
  fn kernel_main() -> ! {
@@ -528,7 +530,7 @@ diff -uNr 08_hw_debug_JTAG/src/main.rs 09_privilege_level/src/main.rs
      use core::time::Duration;
 
      info!(
-@@ -157,6 +159,12 @@
+@@ -154,6 +156,12 @@
      );
      info!("Booting on: {}", bsp::board_name());
 
@@ -541,7 +543,7 @@ diff -uNr 08_hw_debug_JTAG/src/main.rs 09_privilege_level/src/main.rs
      info!(
          "Architectural timer resolution: {} ns",
          time::time_manager().resolution().as_nanos()
-@@ -165,11 +173,15 @@
+@@ -162,11 +170,15 @@
      info!("Drivers loaded:");
      driver::driver_manager().enumerate();
 

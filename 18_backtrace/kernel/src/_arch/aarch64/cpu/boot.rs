@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2021-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2021-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Architectural boot code.
 //!
@@ -15,7 +15,7 @@ use crate::{memory, memory::Address};
 use aarch64_cpu::{asm, registers::*};
 use core::{
     arch::global_asm,
-    sync::atomic::{compiler_fence, Ordering},
+    sync::atomic::{Ordering, compiler_fence},
 };
 use tock_registers::interfaces::Writeable;
 
@@ -93,25 +93,27 @@ unsafe fn prepare_backtrace_reset() {
 /// # Safety
 ///
 /// - Exception return from EL2 must must continue execution in EL1 with `kernel_init()`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn _start_rust(
     phys_kernel_tables_base_addr: u64,
     virt_boot_core_stack_end_exclusive_addr: u64,
     virt_kernel_init_addr: u64,
 ) -> ! {
-    prepare_el2_to_el1_transition(
-        virt_boot_core_stack_end_exclusive_addr,
-        virt_kernel_init_addr,
-    );
+    unsafe {
+        prepare_el2_to_el1_transition(
+            virt_boot_core_stack_end_exclusive_addr,
+            virt_kernel_init_addr,
+        );
 
-    // Turn on the MMU for EL1.
-    let addr = Address::new(phys_kernel_tables_base_addr as usize);
-    memory::mmu::enable_mmu_and_caching(addr).unwrap();
+        // Turn on the MMU for EL1.
+        let addr = Address::new(phys_kernel_tables_base_addr as usize);
+        memory::mmu::enable_mmu_and_caching(addr).unwrap();
 
-    // Make the function we return to the root of a backtrace.
-    prepare_backtrace_reset();
+        // Make the function we return to the root of a backtrace.
+        prepare_backtrace_reset();
 
-    // Use `eret` to "return" to EL1. Since virtual memory will already be enabled, this results in
-    // execution of kernel_init() in EL1 from its _virtual address_.
-    asm::eret()
+        // Use `eret` to "return" to EL1. Since virtual memory will already be enabled, this results
+        // in execution of kernel_init() in EL1 from its _virtual address_.
+        asm::eret()
+    }
 }

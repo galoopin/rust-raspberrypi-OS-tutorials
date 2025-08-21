@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! PL011 UART driver.
 //!
@@ -246,10 +246,12 @@ impl PL011UartInner {
     ///
     /// - The user must ensure to provide a correct MMIO start address.
     pub const unsafe fn new(mmio_start_addr: Address<Virtual>) -> Self {
-        Self {
-            registers: Registers::new(mmio_start_addr),
-            chars_written: 0,
-            chars_read: 0,
+        unsafe {
+            Self {
+                registers: Registers::new(mmio_start_addr),
+                chars_written: 0,
+                chars_read: 0,
+            }
         }
     }
 
@@ -404,8 +406,10 @@ impl PL011Uart {
     ///
     /// - The user must ensure to provide a correct MMIO start address.
     pub const unsafe fn new(mmio_start_addr: Address<Virtual>) -> Self {
-        Self {
-            inner: IRQSafeNullLock::new(PL011UartInner::new(mmio_start_addr)),
+        unsafe {
+            Self {
+                inner: IRQSafeNullLock::new(PL011UartInner::new(mmio_start_addr)),
+            }
         }
     }
 }
@@ -432,7 +436,7 @@ impl driver::interface::DeviceDriver for PL011Uart {
         &'static self,
         irq_number: &Self::IRQNumberType,
     ) -> Result<(), &'static str> {
-        use exception::asynchronous::{irq_manager, IRQHandlerDescriptor};
+        use exception::asynchronous::{IRQHandlerDescriptor, irq_manager};
 
         let descriptor = IRQHandlerDescriptor::new(*irq_number, Self::COMPATIBLE, self);
 

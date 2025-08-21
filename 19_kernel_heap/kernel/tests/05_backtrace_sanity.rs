@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2022-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Test if backtracing code detects an invalid frame pointer.
 
@@ -18,9 +18,11 @@ fn nested() {
     panic!()
 }
 
-#[no_mangle]
-unsafe fn kernel_init() -> ! {
-    exception::handling_init();
+#[unsafe(no_mangle)]
+fn kernel_init() -> ! {
+    unsafe {
+        exception::handling_init();
+    }
     memory::init();
     bsp::driver::qemu_bring_up_console();
 

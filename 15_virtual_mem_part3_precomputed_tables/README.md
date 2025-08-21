@@ -805,8 +805,37 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/Cargo.toml 15_virtual_mem_part3
 -version = "0.14.0"
 +version = "0.15.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
+@@ -11,12 +11,14 @@
+ test_build = ["qemu-exit"]
+
+ [lints.rust]
++dead_code = "allow"
++incomplete_include = "allow"
+ internal_features = "allow"
+ unused_imports = "allow"
+
+-##--------------------------------------------------------------------------------------------------
++##-------------------------------------------------------------------------------------------------
+ ## Dependencies
+-##--------------------------------------------------------------------------------------------------
++##-------------------------------------------------------------------------------------------------
+
+ [dependencies]
+ test-types = { path = "../libraries/test-types" }
+@@ -31,9 +33,9 @@
+ [target.'cfg(target_arch = "aarch64")'.dependencies]
+ aarch64-cpu = { version = "9.x.x" }
+
+-##--------------------------------------------------------------------------------------------------
++##-------------------------------------------------------------------------------------------------
+ ## Testing
+-##--------------------------------------------------------------------------------------------------
++##-------------------------------------------------------------------------------------------------
+
+ [dev-dependencies]
+ test-macros = { path = "../libraries/test-macros" }
 
 diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/cpu/boot.rs 15_virtual_mem_part3_precomputed_tables/kernel/src/_arch/aarch64/cpu/boot.rs
 --- 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/cpu/boot.rs
@@ -819,24 +848,25 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/cpu/boot.rs 1
  use aarch64_cpu::{asm, registers::*};
  use core::arch::global_asm;
  use tock_registers::interfaces::Writeable;
-@@ -75,9 +76,16 @@
+@@ -75,10 +76,17 @@
  ///
  /// - Exception return from EL2 must must continue execution in EL1 with `kernel_init()`.
- #[no_mangle]
+ #[unsafe(no_mangle)]
 -pub unsafe extern "C" fn _start_rust(phys_boot_core_stack_end_exclusive_addr: u64) -> ! {
 +pub unsafe extern "C" fn _start_rust(
 +    phys_kernel_tables_base_addr: u64,
 +    phys_boot_core_stack_end_exclusive_addr: u64,
 +) -> ! {
-     prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr);
+     unsafe {
+         prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr);
 
-+    // Turn on the MMU for EL1.
-+    let addr = Address::new(phys_kernel_tables_base_addr as usize);
-+    memory::mmu::enable_mmu_and_caching(addr).unwrap();
++        // Turn on the MMU for EL1.
++        let addr = Address::new(phys_kernel_tables_base_addr as usize);
++        memory::mmu::enable_mmu_and_caching(addr).unwrap();
 +
-     // Use `eret` to "return" to EL1. This results in execution of kernel_init() in EL1.
-     asm::eret()
- }
+         // Use `eret` to "return" to EL1. This results in execution of kernel_init() in EL1.
+         asm::eret()
+     }
 
 diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/cpu/boot.s 15_virtual_mem_part3_precomputed_tables/kernel/src/_arch/aarch64/cpu/boot.s
 --- 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/cpu/boot.s
@@ -875,7 +905,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/cpu/boot.s 15
 diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/memory/mmu/translation_table.rs 15_virtual_mem_part3_precomputed_tables/kernel/src/_arch/aarch64/memory/mmu/translation_table.rs
 --- 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/memory/mmu/translation_table.rs
 +++ 15_virtual_mem_part3_precomputed_tables/kernel/src/_arch/aarch64/memory/mmu/translation_table.rs
-@@ -125,7 +125,7 @@
+@@ -124,7 +124,7 @@
  }
 
  trait StartAddr {
@@ -884,7 +914,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/memory/mmu/tr
  }
 
  //--------------------------------------------------------------------------------------------------
-@@ -151,9 +151,8 @@
+@@ -150,9 +150,8 @@
  // Private Code
  //--------------------------------------------------------------------------------------------------
 
@@ -895,7 +925,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/memory/mmu/tr
          Address::new(self as *const _ as usize)
      }
  }
-@@ -218,6 +217,35 @@
+@@ -217,6 +216,35 @@
      }
  }
 
@@ -931,7 +961,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/memory/mmu/tr
  impl PageDescriptor {
      /// Create an instance.
      ///
-@@ -250,6 +278,19 @@
+@@ -249,6 +277,19 @@
          InMemoryRegister::<u64, STAGE1_PAGE_DESCRIPTOR::Register>::new(self.value)
              .is_set(STAGE1_PAGE_DESCRIPTOR::VALID)
      }
@@ -951,7 +981,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/memory/mmu/tr
  }
 
  //--------------------------------------------------------------------------------------------------
-@@ -267,7 +308,7 @@
+@@ -266,7 +307,7 @@
  impl<const NUM_TABLES: usize> FixedSizeTranslationTable<NUM_TABLES> {
      /// Create an instance.
      #[allow(clippy::assertions_on_constants)]
@@ -960,7 +990,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/memory/mmu/tr
          assert!(bsp::memory::mmu::KernelGranule::SIZE == Granule64KiB::SIZE);
 
          // Can't have a zero-sized address space.
-@@ -276,10 +317,19 @@
+@@ -275,10 +316,19 @@
          Self {
              lvl3: [[PageDescriptor::new_zeroed(); 8192]; NUM_TABLES],
              lvl2: [TableDescriptor::new_zeroed(); NUM_TABLES],
@@ -981,7 +1011,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/memory/mmu/tr
      /// Helper to calculate the lvl2 and lvl3 indices from an address.
      #[inline(always)]
      fn lvl2_lvl3_index_from_page_addr(
-@@ -297,6 +347,18 @@
+@@ -296,6 +346,18 @@
          Ok((lvl2_index, lvl3_index))
      }
 
@@ -1000,7 +1030,20 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/memory/mmu/tr
      /// Sets the PageDescriptor corresponding to the supplied page address.
      ///
      /// Doesn't allow overriding an already valid page.
-@@ -325,24 +387,23 @@
+@@ -317,12 +379,6 @@
+     }
+ }
+
+-impl<const NUM_TABLES: usize> Default for FixedSizeTranslationTable<NUM_TABLES> {
+-    fn default() -> Self {
+-        Self::new()
+-    }
+-}
+-
+ //------------------------------------------------------------------------------
+ // OS Interface Code
+ //------------------------------------------------------------------------------
+@@ -330,24 +386,23 @@
  impl<const NUM_TABLES: usize> memory::mmu::translation_table::interface::TranslationTable
      for FixedSizeTranslationTable<NUM_TABLES>
  {
@@ -1030,7 +1073,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/_arch/aarch64/memory/mmu/tr
      }
 
      unsafe fn map_at(
-@@ -372,6 +433,45 @@
+@@ -378,6 +433,45 @@
 
          Ok(())
      }
@@ -1081,7 +1124,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/bsp/raspberrypi/kernel.ld 1
 --- 14_virtual_mem_part2_mmio_remap/kernel/src/bsp/raspberrypi/kernel.ld
 +++ 15_virtual_mem_part3_precomputed_tables/kernel/src/bsp/raspberrypi/kernel.ld
 @@ -3,6 +3,8 @@
-  * Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+  * Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
   */
 
 +INCLUDE kernel_virt_addr_space_size.ld;
@@ -1103,22 +1146,22 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/bsp/raspberrypi/kernel_virt
 --- 14_virtual_mem_part2_mmio_remap/kernel/src/bsp/raspberrypi/kernel_virt_addr_space_size.ld
 +++ 15_virtual_mem_part3_precomputed_tables/kernel/src/bsp/raspberrypi/kernel_virt_addr_space_size.ld
 @@ -0,0 +1 @@
-+__kernel_virt_addr_space_size = 1024 * 1024 * 1024
++__kernel_virt_addr_space_size = 1024 * 1024 * 1024;
 
 diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/bsp/raspberrypi/memory/mmu.rs 15_virtual_mem_part3_precomputed_tables/kernel/src/bsp/raspberrypi/memory/mmu.rs
 --- 14_virtual_mem_part2_mmio_remap/kernel/src/bsp/raspberrypi/memory/mmu.rs
 +++ 15_virtual_mem_part3_precomputed_tables/kernel/src/bsp/raspberrypi/memory/mmu.rs
-@@ -7,8 +7,8 @@
- use crate::{
+@@ -8,8 +8,8 @@
      memory::{
+         Physical, Virtual,
          mmu::{
 -            self as generic_mmu, AccessPermissions, AddressSpace, AssociatedTranslationTable,
 -            AttributeFields, MemAttributes, MemoryRegion, PageAddress, TranslationGranule,
 +            self as generic_mmu, AddressSpace, AssociatedTranslationTable, AttributeFields,
 +            MemoryRegion, PageAddress, TranslationGranule,
          },
-         Physical, Virtual,
      },
+     synchronization::InitStateLock,
 @@ -31,7 +31,7 @@
  pub type KernelGranule = TranslationGranule<{ 64 * 1024 }>;
 
@@ -1132,8 +1175,8 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/bsp/raspberrypi/memory/mmu.
  ///
  /// That is, `size_of(InitStateLock<KernelTranslationTable>) == size_of(KernelTranslationTable)`.
  /// There is a unit tests that checks this porperty.
-+#[link_section = ".data"]
-+#[no_mangle]
++#[unsafe(link_section = ".data")]
++#[unsafe(no_mangle)]
  static KERNEL_TABLES: InitStateLock<KernelTranslationTable> =
 -    InitStateLock::new(KernelTranslationTable::new());
 +    InitStateLock::new(KernelTranslationTable::new_for_precompute());
@@ -1142,8 +1185,8 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/bsp/raspberrypi/memory/mmu.
 +///
 +/// This will be patched to the correct value by the "translation table tool" after linking. This
 +/// given value here is just a dummy.
-+#[link_section = ".text._start_arguments"]
-+#[no_mangle]
++#[unsafe(link_section = ".text._start_arguments")]
++#[unsafe(no_mangle)]
 +static PHYS_KERNEL_TABLES_BASE_ADDR: u64 = 0xCCCCAAAAFFFFEEEE;
 
  //--------------------------------------------------------------------------------------------------
@@ -1199,69 +1242,53 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/bsp/raspberrypi/memory/mmu.
  }
 
  //--------------------------------------------------------------------------------------------------
-@@ -121,109 +147,33 @@
+@@ -121,111 +147,33 @@
      MemoryRegion::new(start_page_addr, end_exclusive_page_addr)
  }
 
 -/// Map the kernel binary.
+-///
+-/// # Safety
 +/// Add mapping records for the kernel binary.
  ///
--/// # Safety
--///
 -/// - Any miscalculation or attribute error will likely be fatal. Needs careful manual checking.
 -pub unsafe fn kernel_map_binary() -> Result<(), &'static str> {
--    generic_mmu::kernel_map_at(
-+/// The actual translation table entries for the kernel binary are generated using the offline
-+/// `translation table tool` and patched into the kernel binary. This function just adds the mapping
-+/// record entries.
-+pub fn kernel_add_mapping_records_for_precomputed() {
-+    let virt_boot_core_stack_region = virt_boot_core_stack_region();
-+    generic_mmu::kernel_add_mapping_record(
-         "Kernel boot-core stack",
--        &virt_boot_core_stack_region(),
--        &kernel_virt_to_phys_region(virt_boot_core_stack_region()),
--        &AttributeFields {
--            mem_attributes: MemAttributes::CacheableDRAM,
--            acc_perms: AccessPermissions::ReadWrite,
--            execute_never: true,
--        },
--    )?;
-+        &virt_boot_core_stack_region,
-+        &kernel_virt_to_phys_region(virt_boot_core_stack_region),
-+        &kernel_page_attributes(virt_boot_core_stack_region.start_page_addr()),
-+    );
-
--    generic_mmu::kernel_map_at(
-+    let virt_code_region = virt_code_region();
-+    generic_mmu::kernel_add_mapping_record(
-         "Kernel code and RO data",
--        &virt_code_region(),
--        &kernel_virt_to_phys_region(virt_code_region()),
--        &AttributeFields {
--            mem_attributes: MemAttributes::CacheableDRAM,
--            acc_perms: AccessPermissions::ReadOnly,
--            execute_never: false,
--        },
--    )?;
-+        &virt_code_region,
-+        &kernel_virt_to_phys_region(virt_code_region),
-+        &kernel_page_attributes(virt_code_region.start_page_addr()),
-+    );
-
--    generic_mmu::kernel_map_at(
-+    let virt_data_region = virt_data_region();
-+    generic_mmu::kernel_add_mapping_record(
-         "Kernel data and bss",
--        &virt_data_region(),
--        &kernel_virt_to_phys_region(virt_data_region()),
--        &AttributeFields {
--            mem_attributes: MemAttributes::CacheableDRAM,
--            acc_perms: AccessPermissions::ReadWrite,
--            execute_never: true,
--        },
--    )?;
+-    unsafe {
+-        generic_mmu::kernel_map_at(
+-            "Kernel boot-core stack",
+-            &virt_boot_core_stack_region(),
+-            &kernel_virt_to_phys_region(virt_boot_core_stack_region()),
+-            &AttributeFields {
+-                mem_attributes: MemAttributes::CacheableDRAM,
+-                acc_perms: AccessPermissions::ReadWrite,
+-                execute_never: true,
+-            },
+-        )?;
 -
--    Ok(())
+-        generic_mmu::kernel_map_at(
+-            "Kernel code and RO data",
+-            &virt_code_region(),
+-            &kernel_virt_to_phys_region(virt_code_region()),
+-            &AttributeFields {
+-                mem_attributes: MemAttributes::CacheableDRAM,
+-                acc_perms: AccessPermissions::ReadOnly,
+-                execute_never: false,
+-            },
+-        )?;
+-
+-        generic_mmu::kernel_map_at(
+-            "Kernel data and bss",
+-            &virt_data_region(),
+-            &kernel_virt_to_phys_region(virt_data_region()),
+-            &AttributeFields {
+-                mem_attributes: MemAttributes::CacheableDRAM,
+-                acc_perms: AccessPermissions::ReadWrite,
+-                execute_never: true,
+-            },
+-        )?;
+-
+-        Ok(())
+-    }
 -}
 -
 -//--------------------------------------------------------------------------------------------------
@@ -1312,7 +1339,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/bsp/raspberrypi/memory/mmu.
 -    /// Check if KERNEL_TABLES is in .bss.
 -    #[kernel_test]
 -    fn kernel_tables_in_bss() {
--        extern "Rust" {
+-        unsafe extern "Rust" {
 -            static __bss_start: UnsafeCell<u64>;
 -            static __bss_end_exclusive: UnsafeCell<u64>;
 -        }
@@ -1327,6 +1354,29 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/bsp/raspberrypi/memory/mmu.
 -
 -        assert!(bss_range.contains(&kernel_tables_addr));
 -    }
++/// The actual translation table entries for the kernel binary are generated using the offline
++/// `translation table tool` and patched into the kernel binary. This function just adds the mapping
++/// record entries.
++pub fn kernel_add_mapping_records_for_precomputed() {
++    let virt_boot_core_stack_region = virt_boot_core_stack_region();
++    generic_mmu::kernel_add_mapping_record(
++        "Kernel boot-core stack",
++        &virt_boot_core_stack_region,
++        &kernel_virt_to_phys_region(virt_boot_core_stack_region),
++        &kernel_page_attributes(virt_boot_core_stack_region.start_page_addr()),
++    );
++
++    let virt_code_region = virt_code_region();
++    generic_mmu::kernel_add_mapping_record(
++        "Kernel code and RO data",
++        &virt_code_region,
++        &kernel_virt_to_phys_region(virt_code_region),
++        &kernel_page_attributes(virt_code_region.start_page_addr()),
++    );
++
++    let virt_data_region = virt_data_region();
++    generic_mmu::kernel_add_mapping_record(
++        "Kernel data and bss",
 +        &virt_data_region,
 +        &kernel_virt_to_phys_region(virt_data_region),
 +        &kernel_page_attributes(virt_data_region.start_page_addr()),
@@ -1336,17 +1386,17 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/bsp/raspberrypi/memory/mmu.
 diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/lib.rs 15_virtual_mem_part3_precomputed_tables/kernel/src/lib.rs
 --- 14_virtual_mem_part2_mmio_remap/kernel/src/lib.rs
 +++ 15_virtual_mem_part3_precomputed_tables/kernel/src/lib.rs
-@@ -187,17 +187,7 @@
- #[no_mangle]
- unsafe fn kernel_init() -> ! {
-     exception::handling_init();
+@@ -183,17 +183,7 @@
+     unsafe {
+         exception::handling_init();
+     }
 -
--    let phys_kernel_tables_base_addr = match memory::mmu::kernel_map_binary() {
+-    let phys_kernel_tables_base_addr = match unsafe { memory::mmu::kernel_map_binary() } {
 -        Err(string) => panic!("Error mapping kernel binary: {}", string),
 -        Ok(addr) => addr,
 -    };
 -
--    if let Err(e) = memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) {
+-    if let Err(e) = unsafe { memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) } {
 -        panic!("Enabling MMU failed: {}", e);
 -    }
 -
@@ -1359,7 +1409,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/lib.rs 15_virtual_mem_part3
 diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/main.rs 15_virtual_mem_part3_precomputed_tables/kernel/src/main.rs
 --- 14_virtual_mem_part2_mmio_remap/kernel/src/main.rs
 +++ 15_virtual_mem_part3_precomputed_tables/kernel/src/main.rs
-@@ -17,27 +17,16 @@
+@@ -17,28 +17,17 @@
 
  /// Early init code.
  ///
@@ -1373,32 +1423,33 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/main.rs 15_virtual_mem_part
 -///       e.g. the yet-to-be-introduced spinlocks in the device drivers (which currently employ
 -///       IRQSafeNullLocks instead of spinlocks), will fail to work (properly) on the RPi SoCs.
 +/// - Printing will not work until the respective driver's MMIO is remapped.
- #[no_mangle]
+ #[unsafe(no_mangle)]
  unsafe fn kernel_init() -> ! {
-     exception::handling_init();
+     unsafe {
+         exception::handling_init();
 -
--    let phys_kernel_tables_base_addr = match memory::mmu::kernel_map_binary() {
--        Err(string) => panic!("Error mapping kernel binary: {}", string),
--        Ok(addr) => addr,
--    };
+-        let phys_kernel_tables_base_addr = match memory::mmu::kernel_map_binary() {
+-            Err(string) => panic!("Error mapping kernel binary: {}", string),
+-            Ok(addr) => addr,
+-        };
 -
--    if let Err(e) = memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) {
--        panic!("Enabling MMU failed: {}", e);
--    }
+-        if let Err(e) = memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) {
+-            panic!("Enabling MMU failed: {}", e);
+-        }
 -
--    memory::mmu::post_enable_init();
-+    memory::init();
+-        memory::mmu::post_enable_init();
++        memory::init();
 
-     // Initialize the BSP driver subsystem.
-     if let Err(x) = bsp::driver::init() {
-@@ -47,6 +36,8 @@
-     // Initialize all device drivers.
-     driver::driver_manager().init_drivers_and_irqs();
+         // Initialize the BSP driver subsystem.
+         if let Err(x) = bsp::driver::init() {
+@@ -48,6 +37,8 @@
+         // Initialize all device drivers.
+         driver::driver_manager().init_drivers_and_irqs();
 
-+    bsp::memory::mmu::kernel_add_mapping_records_for_precomputed();
++        bsp::memory::mmu::kernel_add_mapping_records_for_precomputed();
 +
-     // Unmask interrupts on the boot CPU core.
-     exception::asynchronous::local_irq_unmask();
+         // Unmask interrupts on the boot CPU core.
+         exception::asynchronous::local_irq_unmask();
 
 
 diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/memory/mmu/translation_table.rs 15_virtual_mem_part3_precomputed_tables/kernel/src/memory/mmu/translation_table.rs
@@ -1523,16 +1574,17 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/memory/mmu.rs 15_virtual_me
  /// Map a region in the kernel's translation tables.
  ///
  /// No input checks done, input is passed through to the architectural implementation.
-@@ -101,13 +94,21 @@
-     bsp::memory::mmu::kernel_translation_tables()
-         .write(|tables| tables.map_at(virt_region, phys_region, attr))?;
+@@ -102,14 +95,22 @@
+         bsp::memory::mmu::kernel_translation_tables()
+             .write(|tables| tables.map_at(virt_region, phys_region, attr))?;
 
--    if let Err(x) = mapping_record::kernel_add(name, virt_region, phys_region, attr) {
--        warn!("{}", x);
--    }
-+    kernel_add_mapping_record(name, virt_region, phys_region, attr);
+-        if let Err(x) = mapping_record::kernel_add(name, virt_region, phys_region, attr) {
+-            warn!("{}", x);
+-        }
++        kernel_add_mapping_record(name, virt_region, phys_region, attr);
 
-     Ok(())
+         Ok(())
+     }
  }
 
 +/// Try to translate a kernel virtual address to a physical address.
@@ -1548,7 +1600,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/memory/mmu.rs 15_virtual_me
  //--------------------------------------------------------------------------------------------------
  // Public Code
  //--------------------------------------------------------------------------------------------------
-@@ -155,27 +156,24 @@
+@@ -157,28 +158,23 @@
      }
  }
 
@@ -1576,35 +1628,39 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/memory/mmu.rs 15_virtual_me
      phys_region: &MemoryRegion<Physical>,
      attr: &AttributeFields,
 -) -> Result<(), &'static str> {
--    if bsp::memory::mmu::virt_mmio_remap_region().overlaps(virt_region) {
--        return Err("Attempt to manually map into MMIO region");
+-    unsafe {
+-        if bsp::memory::mmu::virt_mmio_remap_region().overlaps(virt_region) {
+-            return Err("Attempt to manually map into MMIO region");
+-        }
+-
+-        kernel_map_at_unchecked(name, virt_region, phys_region, attr)?;
+-
+-        Ok(())
 +) {
 +    if let Err(x) = mapping_record::kernel_add(name, virt_region, phys_region, attr) {
 +        warn!("{}", x);
      }
--
--    kernel_map_at_unchecked(name, virt_region, phys_region, attr)?;
--
--    Ok(())
  }
 
- /// MMIO remapping in the kernel translation tables.
-@@ -224,21 +222,29 @@
-     Ok(virt_addr + offset_into_start_page)
+@@ -230,23 +226,29 @@
+     }
  }
 
 -/// Map the kernel's binary. Returns the translation table's base address.
--///
--/// # Safety
 +/// Try to translate a kernel virtual page address to a physical page address.
  ///
+-/// # Safety
+-///
 -/// - See [`bsp::memory::mmu::kernel_map_binary()`].
 -pub unsafe fn kernel_map_binary() -> Result<Address<Physical>, &'static str> {
--    let phys_kernel_tables_base_addr =
--        bsp::memory::mmu::kernel_translation_tables().write(|tables| {
--            tables.init();
--            tables.phys_base_address()
--        });
+-    unsafe {
+-        let phys_kernel_tables_base_addr =
+-            bsp::memory::mmu::kernel_translation_tables().write(|tables| {
+-                tables.init();
+-                tables.phys_base_address()
+-            });
+-
+-        bsp::memory::mmu::kernel_map_binary()?;
 +/// Will only succeed if there exists a valid mapping for the input page.
 +pub fn try_kernel_virt_page_addr_to_phys_page_addr(
 +    virt_page_addr: PageAddress<Virtual>,
@@ -1612,8 +1668,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/memory/mmu.rs 15_virtual_me
 +    bsp::memory::mmu::kernel_translation_tables()
 +        .read(|tables| tables.try_virt_page_addr_to_phys_page_addr(virt_page_addr))
 +}
-
--    bsp::memory::mmu::kernel_map_binary()?;
++
 +/// Try to get the attributes of a kernel page.
 +///
 +/// Will only succeed if there exists a valid mapping for the input page.
@@ -1624,14 +1679,15 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/memory/mmu.rs 15_virtual_me
 +        .read(|tables| tables.try_page_attributes(virt_page_addr))
 +}
 
--    Ok(phys_kernel_tables_base_addr)
+-        Ok(phys_kernel_tables_base_addr)
+-    }
 +/// Human-readable print of all recorded kernel mappings.
 +pub fn kernel_print_mappings() {
 +    mapping_record::kernel_print()
  }
 
  /// Enable the MMU and data + instruction caching.
-@@ -246,56 +252,9 @@
+@@ -254,56 +256,9 @@
  /// # Safety
  ///
  /// - Crucial function during kernel init. Changes the the complete memory view of the processor.
@@ -1639,7 +1695,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/memory/mmu.rs 15_virtual_me
  pub unsafe fn enable_mmu_and_caching(
      phys_tables_base_addr: Address<Physical>,
  ) -> Result<(), MMUEnableError> {
-     arch_mmu::mmu().enable_mmu_and_caching(phys_tables_base_addr)
+     unsafe { arch_mmu::mmu().enable_mmu_and_caching(phys_tables_base_addr) }
  }
 -
 -/// Finish initialization of the MMU subsystem.
@@ -1709,17 +1765,17 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/src/memory.rs 15_virtual_mem_pa
 diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/tests/00_console_sanity.rs 15_virtual_mem_part3_precomputed_tables/kernel/tests/00_console_sanity.rs
 --- 14_virtual_mem_part2_mmio_remap/kernel/tests/00_console_sanity.rs
 +++ 15_virtual_mem_part3_precomputed_tables/kernel/tests/00_console_sanity.rs
-@@ -18,17 +18,7 @@
-     use console::console;
-
-     exception::handling_init();
+@@ -20,17 +20,7 @@
+     unsafe {
+         exception::handling_init();
+     }
 -
--    let phys_kernel_tables_base_addr = match memory::mmu::kernel_map_binary() {
+-    let phys_kernel_tables_base_addr = match unsafe { memory::mmu::kernel_map_binary() } {
 -        Err(string) => panic!("Error mapping kernel binary: {}", string),
 -        Ok(addr) => addr,
 -    };
 -
--    if let Err(e) = memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) {
+-    if let Err(e) = unsafe { memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) } {
 -        panic!("Enabling MMU failed: {}", e);
 -    }
 -
@@ -1732,17 +1788,17 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/tests/00_console_sanity.rs 15_v
 diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/tests/01_timer_sanity.rs 15_virtual_mem_part3_precomputed_tables/kernel/tests/01_timer_sanity.rs
 --- 14_virtual_mem_part2_mmio_remap/kernel/tests/01_timer_sanity.rs
 +++ 15_virtual_mem_part3_precomputed_tables/kernel/tests/01_timer_sanity.rs
-@@ -17,17 +17,7 @@
- #[no_mangle]
- unsafe fn kernel_init() -> ! {
-     exception::handling_init();
+@@ -18,17 +18,7 @@
+     unsafe {
+         exception::handling_init();
+     }
 -
--    let phys_kernel_tables_base_addr = match memory::mmu::kernel_map_binary() {
+-    let phys_kernel_tables_base_addr = match unsafe { memory::mmu::kernel_map_binary() } {
 -        Err(string) => panic!("Error mapping kernel binary: {}", string),
 -        Ok(addr) => addr,
 -    };
 -
--    if let Err(e) = memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) {
+-    if let Err(e) = unsafe { memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) } {
 -        panic!("Enabling MMU failed: {}", e);
 -    }
 -
@@ -1755,17 +1811,17 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/tests/01_timer_sanity.rs 15_vir
 diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/tests/02_exception_sync_page_fault.rs 15_virtual_mem_part3_precomputed_tables/kernel/tests/02_exception_sync_page_fault.rs
 --- 14_virtual_mem_part2_mmio_remap/kernel/tests/02_exception_sync_page_fault.rs
 +++ 15_virtual_mem_part3_precomputed_tables/kernel/tests/02_exception_sync_page_fault.rs
-@@ -22,26 +22,12 @@
- #[no_mangle]
- unsafe fn kernel_init() -> ! {
-     exception::handling_init();
+@@ -24,26 +24,12 @@
+     unsafe {
+         exception::handling_init();
+     }
 +    memory::init();
 +    bsp::driver::qemu_bring_up_console();
 
      // This line will be printed as the test header.
      println!("Testing synchronous exception handling by causing a page fault");
 
--    let phys_kernel_tables_base_addr = match memory::mmu::kernel_map_binary() {
+-    let phys_kernel_tables_base_addr = match unsafe { memory::mmu::kernel_map_binary() } {
 -        Err(string) => {
 -            info!("Error mapping kernel binary: {}", string);
 -            cpu::qemu_exit_failure()
@@ -1773,7 +1829,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/tests/02_exception_sync_page_fa
 -        Ok(addr) => addr,
 -    };
 -
--    if let Err(e) = memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) {
+-    if let Err(e) = unsafe { memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) } {
 -        info!("Enabling MMU failed: {}", e);
 -        cpu::qemu_exit_failure()
 -    }
@@ -1783,22 +1839,22 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/tests/02_exception_sync_page_fa
 -
      info!("Writing beyond mapped area to address 9 GiB...");
      let big_addr: u64 = 9 * 1024 * 1024 * 1024;
-     core::ptr::read_volatile(big_addr as *mut u64);
+     unsafe {
 
 diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/tests/03_exception_restore_sanity.rs 15_virtual_mem_part3_precomputed_tables/kernel/tests/03_exception_restore_sanity.rs
 --- 14_virtual_mem_part2_mmio_remap/kernel/tests/03_exception_restore_sanity.rs
 +++ 15_virtual_mem_part3_precomputed_tables/kernel/tests/03_exception_restore_sanity.rs
-@@ -31,26 +31,12 @@
- #[no_mangle]
- unsafe fn kernel_init() -> ! {
-     exception::handling_init();
+@@ -33,26 +33,12 @@
+     unsafe {
+         exception::handling_init();
+     }
 +    memory::init();
 +    bsp::driver::qemu_bring_up_console();
 
      // This line will be printed as the test header.
      println!("Testing exception restore");
 
--    let phys_kernel_tables_base_addr = match memory::mmu::kernel_map_binary() {
+-    let phys_kernel_tables_base_addr = match unsafe { memory::mmu::kernel_map_binary() } {
 -        Err(string) => {
 -            info!("Error mapping kernel binary: {}", string);
 -            cpu::qemu_exit_failure()
@@ -1806,7 +1862,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/tests/03_exception_restore_sani
 -        Ok(addr) => addr,
 -    };
 -
--    if let Err(e) = memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) {
+-    if let Err(e) = unsafe { memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) } {
 -        info!("Enabling MMU failed: {}", e);
 -        cpu::qemu_exit_failure()
 -    }
@@ -1821,26 +1877,29 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/tests/03_exception_restore_sani
 diff -uNr 14_virtual_mem_part2_mmio_remap/kernel/tests/04_exception_irq_sanity.rs 15_virtual_mem_part3_precomputed_tables/kernel/tests/04_exception_irq_sanity.rs
 --- 14_virtual_mem_part2_mmio_remap/kernel/tests/04_exception_irq_sanity.rs
 +++ 15_virtual_mem_part3_precomputed_tables/kernel/tests/04_exception_irq_sanity.rs
-@@ -15,20 +15,10 @@
+@@ -14,22 +14,12 @@
 
- #[no_mangle]
- unsafe fn kernel_init() -> ! {
--    exception::handling_init();
+ #[unsafe(no_mangle)]
+ fn kernel_init() -> ! {
++    memory::init();
++    bsp::driver::qemu_bring_up_console();
++
+     unsafe {
+         exception::handling_init();
+     }
 -
--    let phys_kernel_tables_base_addr = match memory::mmu::kernel_map_binary() {
+-    let phys_kernel_tables_base_addr = match unsafe { memory::mmu::kernel_map_binary() } {
 -        Err(string) => panic!("Error mapping kernel binary: {}", string),
 -        Ok(addr) => addr,
 -    };
 -
--    if let Err(e) = memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) {
+-    if let Err(e) = unsafe { memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) } {
 -        panic!("Enabling MMU failed: {}", e);
 -    }
 -
 -    memory::mmu::post_enable_init();
-+    memory::init();
-     bsp::driver::qemu_bring_up_console();
-
-+    exception::handling_init();
+-    bsp::driver::qemu_bring_up_console();
+-
      exception::asynchronous::local_irq_unmask();
 
      test_main();
@@ -1924,7 +1983,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/tools/translation_table_tool/arch.rb 1
 +
 +# SPDX-License-Identifier: MIT OR Apache-2.0
 +#
-+# Copyright (c) 2021-2023 Andre Richter <andre.o.richter@gmail.com>
++# Copyright (c) 2021-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +# Bitfield manipulation.
 +class BitField
@@ -1936,7 +1995,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/tools/translation_table_tool/arch.rb 1
 +        define_method("#{name}=") do |bits|
 +            mask = (2**num_bits) - 1
 +
-+            raise "Input out of range: #{name} = 0x#{bits.to_s(16)}" if (bits & ~mask).positive?
++            raise "Input out of range: #{name} = 0x#{bits.to_s(16)}" if bits.anybits?(~mask)
 +
 +            # Clear bitfield
 +            @value &= ~(mask << offset)
@@ -2241,7 +2300,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/tools/translation_table_tool/bsp.rb 15
 +
 +# SPDX-License-Identifier: MIT OR Apache-2.0
 +#
-+# Copyright (c) 2021-2023 Andre Richter <andre.o.richter@gmail.com>
++# Copyright (c) 2021-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +# Raspberry Pi 3 + 4
 +class RaspberryPi
@@ -2295,7 +2354,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/tools/translation_table_tool/generic.r
 +
 +# SPDX-License-Identifier: MIT OR Apache-2.0
 +#
-+# Copyright (c) 2021-2023 Andre Richter <andre.o.richter@gmail.com>
++# Copyright (c) 2021-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +module Granule64KiB
 +    SIZE = 64 * 1024
@@ -2317,7 +2376,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/tools/translation_table_tool/generic.r
 +    def aligned?(alignment)
 +        raise unless alignment.power_of_two?
 +
-+        (self & (alignment - 1)).zero?
++        nobits?(alignment - 1)
 +    end
 +
 +    def align_up(alignment)
@@ -2479,7 +2538,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/tools/translation_table_tool/kernel_el
 +
 +# SPDX-License-Identifier: MIT OR Apache-2.0
 +#
-+# Copyright (c) 2021-2023 Andre Richter <andre.o.richter@gmail.com>
++# Copyright (c) 2021-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +# KernelELF
 +class KernelELF
@@ -2581,7 +2640,7 @@ diff -uNr 14_virtual_mem_part2_mmio_remap/tools/translation_table_tool/main.rb 1
 +
 +# SPDX-License-Identifier: MIT OR Apache-2.0
 +#
-+# Copyright (c) 2021-2023 Andre Richter <andre.o.richter@gmail.com>
++# Copyright (c) 2021-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +require 'rubygems'
 +require 'bundler/setup'

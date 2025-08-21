@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Printing.
 
@@ -38,7 +38,7 @@ macro_rules! println {
 /// Prints an info, with a newline.
 #[macro_export]
 macro_rules! info {
-    ($string:expr) => ({
+    ($string:expr_2021) => ({
         let timestamp = $crate::time::time_manager().uptime();
 
         $crate::print::_print(format_args_nl!(
@@ -47,7 +47,7 @@ macro_rules! info {
             timestamp.subsec_micros(),
         ));
     });
-    ($format_string:expr, $($arg:tt)*) => ({
+    ($format_string:expr_2021, $($arg:tt)*) => ({
         let timestamp = $crate::time::time_manager().uptime();
 
         $crate::print::_print(format_args_nl!(
@@ -62,7 +62,7 @@ macro_rules! info {
 /// Prints a warning, with a newline.
 #[macro_export]
 macro_rules! warn {
-    ($string:expr) => ({
+    ($string:expr_2021) => ({
         let timestamp = $crate::time::time_manager().uptime();
 
         $crate::print::_print(format_args_nl!(
@@ -71,7 +71,7 @@ macro_rules! warn {
             timestamp.subsec_micros(),
         ));
     });
-    ($format_string:expr, $($arg:tt)*) => ({
+    ($format_string:expr_2021, $($arg:tt)*) => ({
         let timestamp = $crate::time::time_manager().uptime();
 
         $crate::print::_print(format_args_nl!(

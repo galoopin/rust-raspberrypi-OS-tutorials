@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Timer primitives.
 //!
@@ -16,7 +16,7 @@ mod arch_time;
 use crate::{
     driver, exception,
     exception::asynchronous::IRQNumber,
-    synchronization::{interface::Mutex, IRQSafeNullLock},
+    synchronization::{IRQSafeNullLock, interface::Mutex},
     warn,
 };
 use alloc::{boxed::Box, vec::Vec};
@@ -167,6 +167,12 @@ impl TimeManager {
     }
 }
 
+impl Default for TimeManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Initialize the timer subsystem.
 pub fn init() -> Result<(), &'static str> {
     static INIT_DONE: AtomicBool = AtomicBool::new(false);
@@ -197,7 +203,7 @@ impl driver::interface::DeviceDriver for TimeManager {
         &'static self,
         irq_number: &Self::IRQNumberType,
     ) -> Result<(), &'static str> {
-        use exception::asynchronous::{irq_manager, IRQHandlerDescriptor};
+        use exception::asynchronous::{IRQHandlerDescriptor, irq_manager};
 
         let descriptor = IRQHandlerDescriptor::new(*irq_number, Self::COMPATIBLE, self);
 

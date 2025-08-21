@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! GPIO Driver.
 
@@ -132,8 +132,10 @@ impl GPIOInner {
     ///
     /// - The user must ensure to provide a correct MMIO start address.
     pub const unsafe fn new(mmio_start_addr: usize) -> Self {
-        Self {
-            registers: Registers::new(mmio_start_addr),
+        unsafe {
+            Self {
+                registers: Registers::new(mmio_start_addr),
+            }
         }
     }
 
@@ -205,8 +207,10 @@ impl GPIO {
     ///
     /// - The user must ensure to provide a correct MMIO start address.
     pub const unsafe fn new(mmio_start_addr: usize) -> Self {
-        Self {
-            inner: NullLock::new(GPIOInner::new(mmio_start_addr)),
+        unsafe {
+            Self {
+                inner: NullLock::new(GPIOInner::new(mmio_start_addr)),
+            }
         }
     }
 

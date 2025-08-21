@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Interrupt Controller Driver.
 
@@ -98,9 +98,11 @@ impl InterruptController {
         local_mmio_start_addr: Address<Virtual>,
         periph_mmio_start_addr: Address<Virtual>,
     ) -> Self {
-        Self {
-            local: local_ic::LocalIC::new(local_mmio_start_addr),
-            periph: peripheral_ic::PeripheralIC::new(periph_mmio_start_addr),
+        unsafe {
+            Self {
+                local: local_ic::LocalIC::new(local_mmio_start_addr),
+                periph: peripheral_ic::PeripheralIC::new(periph_mmio_start_addr),
+            }
         }
     }
 }

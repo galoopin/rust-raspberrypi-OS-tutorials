@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: MIT OR Apache-2.0
 #
-# Copyright (c) 2021-2023 Andre Richter <andre.o.richter@gmail.com>
+# Copyright (c) 2021-2025 Andre Richter <andre.o.richter@gmail.com>
 
 module Granule64KiB
     SIZE = 64 * 1024
@@ -24,7 +24,7 @@ class Integer
     def aligned?(alignment)
         raise unless alignment.power_of_two?
 
-        (self & (alignment - 1)).zero?
+        nobits?(alignment - 1)
     end
 
     def align_up(alignment)

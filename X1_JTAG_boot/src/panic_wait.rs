@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! A panic handler that infinitely waits.
 
@@ -60,7 +60,7 @@ fn panic(info: &PanicInfo) -> ! {
         location,
         line,
         column,
-        info.message().unwrap_or(&format_args!("")),
+        info.message(),
     );
 
     cpu::wait_forever()

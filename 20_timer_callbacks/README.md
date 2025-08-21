@@ -25,8 +25,32 @@ diff -uNr 19_kernel_heap/kernel/Cargo.toml 20_timer_callbacks/kernel/Cargo.toml
 -version = "0.19.0"
 +version = "0.20.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
+@@ -17,9 +17,9 @@
+ internal_features = "allow"
+ unused_imports = "allow"
+
+-##--------------------------------------------------------------------------------------------------
++##-------------------------------------------------------------------------------------------------
+ ## Dependencies
+-##--------------------------------------------------------------------------------------------------
++##-------------------------------------------------------------------------------------------------
+
+ [dependencies]
+ test-types = { path = "../libraries/test-types" }
+@@ -38,9 +38,9 @@
+ [target.'cfg(target_arch = "aarch64")'.dependencies]
+ aarch64-cpu = { version = "9.x.x" }
+
+-##--------------------------------------------------------------------------------------------------
++##-------------------------------------------------------------------------------------------------
+ ## Testing
+-##--------------------------------------------------------------------------------------------------
++##-------------------------------------------------------------------------------------------------
+
+ [dev-dependencies]
+ test-macros = { path = "../libraries/test-macros" }
 
 diff -uNr 19_kernel_heap/kernel/src/_arch/aarch64/time.rs 20_timer_callbacks/kernel/src/_arch/aarch64/time.rs
 --- 19_kernel_heap/kernel/src/_arch/aarch64/time.rs
@@ -42,7 +66,7 @@ diff -uNr 19_kernel_heap/kernel/src/_arch/aarch64/time.rs 20_timer_callbacks/ker
 +};
  use aarch64_cpu::{asm::barrier, registers::*};
  use core::{
-     num::{NonZeroU128, NonZeroU32, NonZeroU64},
+     num::{NonZeroU32, NonZeroU64, NonZeroU128},
      ops::{Add, Div},
      time::Duration,
  };
@@ -87,10 +111,10 @@ diff -uNr 19_kernel_heap/kernel/src/_arch/aarch64/time.rs 20_timer_callbacks/ker
 diff -uNr 19_kernel_heap/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller/local_ic.rs 20_timer_callbacks/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller/local_ic.rs
 --- 19_kernel_heap/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller/local_ic.rs
 +++ 20_timer_callbacks/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller/local_ic.rs
-@@ -0,0 +1,173 @@
+@@ -0,0 +1,175 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2022-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! Local Interrupt Controller Driver.
 +//!
@@ -173,10 +197,12 @@ diff -uNr 19_kernel_heap/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_cont
 +    ///
 +    /// - The user must ensure to provide a correct MMIO start address.
 +    pub const unsafe fn new(mmio_start_addr: Address<Virtual>) -> Self {
-+        Self {
-+            wo_registers: IRQSafeNullLock::new(WriteOnlyRegisters::new(mmio_start_addr)),
-+            ro_registers: ReadOnlyRegisters::new(mmio_start_addr),
-+            handler_table: InitStateLock::new(Vec::new()),
++        unsafe {
++            Self {
++                wo_registers: IRQSafeNullLock::new(WriteOnlyRegisters::new(mmio_start_addr)),
++                ro_registers: ReadOnlyRegisters::new(mmio_start_addr),
++                handler_table: InitStateLock::new(Vec::new()),
++            }
 +        }
 +    }
 +
@@ -290,7 +316,7 @@ diff -uNr 19_kernel_heap/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_cont
      const MAX_LOCAL_IRQ_NUMBER: usize = 3;
      const MAX_PERIPHERAL_IRQ_NUMBER: usize = 63;
 
-@@ -92,8 +94,12 @@
+@@ -92,9 +94,13 @@
      /// # Safety
      ///
      /// - The user must ensure to provide a correct MMIO start address.
@@ -299,12 +325,13 @@ diff -uNr 19_kernel_heap/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_cont
 +        local_mmio_start_addr: Address<Virtual>,
 +        periph_mmio_start_addr: Address<Virtual>,
 +    ) -> Self {
-         Self {
-+            local: local_ic::LocalIC::new(local_mmio_start_addr),
-             periph: peripheral_ic::PeripheralIC::new(periph_mmio_start_addr),
+         unsafe {
+             Self {
++                local: local_ic::LocalIC::new(local_mmio_start_addr),
+                 periph: peripheral_ic::PeripheralIC::new(periph_mmio_start_addr),
+             }
          }
-     }
-@@ -111,6 +117,7 @@
+@@ -113,6 +119,7 @@
      }
 
      unsafe fn init(&self) -> Result<(), &'static str> {
@@ -312,7 +339,7 @@ diff -uNr 19_kernel_heap/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_cont
          self.periph.init();
 
          Ok(())
-@@ -125,7 +132,15 @@
+@@ -127,7 +134,15 @@
          irq_handler_descriptor: exception::asynchronous::IRQHandlerDescriptor<Self::IRQNumberType>,
      ) -> Result<(), &'static str> {
          match irq_handler_descriptor.number() {
@@ -329,7 +356,7 @@ diff -uNr 19_kernel_heap/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_cont
              IRQNumber::Peripheral(pirq) => {
                  let periph_descriptor = IRQHandlerDescriptor::new(
                      pirq,
-@@ -140,7 +155,7 @@
+@@ -142,7 +157,7 @@
 
      fn enable(&self, irq: &Self::IRQNumberType) {
          match irq {
@@ -338,7 +365,7 @@ diff -uNr 19_kernel_heap/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_cont
              IRQNumber::Peripheral(pirq) => self.periph.enable(pirq),
          }
      }
-@@ -149,11 +164,12 @@
+@@ -151,11 +166,12 @@
          &'irq_context self,
          ic: &exception::asynchronous::IRQContext<'irq_context>,
      ) {
@@ -356,31 +383,31 @@ diff -uNr 19_kernel_heap/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_cont
 diff -uNr 19_kernel_heap/kernel/src/bsp/raspberrypi/driver.rs 20_timer_callbacks/kernel/src/bsp/raspberrypi/driver.rs
 --- 19_kernel_heap/kernel/src/bsp/raspberrypi/driver.rs
 +++ 20_timer_callbacks/kernel/src/bsp/raspberrypi/driver.rs
-@@ -73,6 +73,12 @@
- /// This must be called only after successful init of the memory subsystem.
+@@ -95,6 +95,12 @@
  #[cfg(feature = "bsp_rpi3")]
  unsafe fn instantiate_interrupt_controller() -> Result<(), &'static str> {
-+    let local_mmio_descriptor = MMIODescriptor::new(mmio::LOCAL_IC_START, mmio::LOCAL_IC_SIZE);
-+    let local_virt_addr = memory::mmu::kernel_map_mmio(
-+        device_driver::InterruptController::COMPATIBLE,
-+        &local_mmio_descriptor,
-+    )?;
+     unsafe {
++        let local_mmio_descriptor = MMIODescriptor::new(mmio::LOCAL_IC_START, mmio::LOCAL_IC_SIZE);
++        let local_virt_addr = memory::mmu::kernel_map_mmio(
++            device_driver::InterruptController::COMPATIBLE,
++            &local_mmio_descriptor,
++        )?;
 +
-     let periph_mmio_descriptor =
-         MMIODescriptor::new(mmio::PERIPHERAL_IC_START, mmio::PERIPHERAL_IC_SIZE);
-     let periph_virt_addr = memory::mmu::kernel_map_mmio(
-@@ -80,7 +86,10 @@
-         &periph_mmio_descriptor,
-     )?;
+         let periph_mmio_descriptor =
+             MMIODescriptor::new(mmio::PERIPHERAL_IC_START, mmio::PERIPHERAL_IC_SIZE);
+         let periph_virt_addr = memory::mmu::kernel_map_mmio(
+@@ -105,7 +111,10 @@
+         let raw_ptr = &raw mut INTERRUPT_CONTROLLER;
+         let interrupt_ctrl = &mut *raw_ptr;
 
--    INTERRUPT_CONTROLLER.write(device_driver::InterruptController::new(periph_virt_addr));
-+    INTERRUPT_CONTROLLER.write(device_driver::InterruptController::new(
-+        local_virt_addr,
-+        periph_virt_addr,
-+    ));
+-        interrupt_ctrl.write(device_driver::InterruptController::new(periph_virt_addr));
++        interrupt_ctrl.write(device_driver::InterruptController::new(
++            local_virt_addr,
++            periph_virt_addr,
++        ));
 
-     Ok(())
- }
+         Ok(())
+     }
 
 diff -uNr 19_kernel_heap/kernel/src/bsp/raspberrypi/exception/asynchronous.rs 20_timer_callbacks/kernel/src/bsp/raspberrypi/exception/asynchronous.rs
 --- 19_kernel_heap/kernel/src/bsp/raspberrypi/exception/asynchronous.rs
@@ -433,19 +460,19 @@ diff -uNr 19_kernel_heap/kernel/src/bsp/raspberrypi/memory.rs 20_timer_callbacks
 diff -uNr 19_kernel_heap/kernel/src/main.rs 20_timer_callbacks/kernel/src/main.rs
 --- 19_kernel_heap/kernel/src/main.rs
 +++ 20_timer_callbacks/kernel/src/main.rs
-@@ -30,6 +30,11 @@
-     exception::handling_init();
-     memory::init();
+@@ -31,6 +31,11 @@
+         exception::handling_init();
+         memory::init();
 
-+    // Initialize the timer subsystem.
-+    if let Err(x) = time::init() {
-+        panic!("Error initializing timer subsystem: {}", x);
-+    }
++        // Initialize the timer subsystem.
++        if let Err(x) = time::init() {
++            panic!("Error initializing timer subsystem: {}", x);
++        }
 +
-     // Initialize the BSP driver subsystem.
-     if let Err(x) = bsp::driver::init() {
-         panic!("Error initializing BSP driver subsystem: {}", x);
-@@ -52,6 +57,9 @@
+         // Initialize the BSP driver subsystem.
+         if let Err(x) = bsp::driver::init() {
+             panic!("Error initializing BSP driver subsystem: {}", x);
+@@ -54,6 +59,9 @@
 
  /// The main function running after the early init.
  fn kernel_main() -> ! {
@@ -455,7 +482,7 @@ diff -uNr 19_kernel_heap/kernel/src/main.rs 20_timer_callbacks/kernel/src/main.r
      info!("{}", libkernel::version());
      info!("Booting on: {}", bsp::board_name());
 
-@@ -78,6 +86,11 @@
+@@ -80,6 +88,11 @@
      info!("Kernel heap:");
      memory::heap_alloc::kernel_heap_allocator().print_usage();
 
@@ -472,7 +499,7 @@ diff -uNr 19_kernel_heap/kernel/src/time.rs 20_timer_callbacks/kernel/src/time.r
 --- 19_kernel_heap/kernel/src/time.rs
 +++ 20_timer_callbacks/kernel/src/time.rs
 @@ -3,19 +3,54 @@
- // Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
+ // Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 
  //! Timer primitives.
 +//!
@@ -489,7 +516,7 @@ diff -uNr 19_kernel_heap/kernel/src/time.rs 20_timer_callbacks/kernel/src/time.r
 +use crate::{
 +    driver, exception,
 +    exception::asynchronous::IRQNumber,
-+    synchronization::{interface::Mutex, IRQSafeNullLock},
++    synchronization::{IRQSafeNullLock, interface::Mutex},
 +    warn,
 +};
 +use alloc::{boxed::Box, vec::Vec};
@@ -591,7 +618,7 @@ diff -uNr 19_kernel_heap/kernel/src/time.rs 20_timer_callbacks/kernel/src/time.r
      }
 
      /// The timer's resolution.
-@@ -54,4 +134,130 @@
+@@ -54,6 +134,37 @@
      pub fn spin_for(&self, duration: Duration) {
          arch_time::spin_for(duration)
      }
@@ -626,7 +653,13 @@ diff -uNr 19_kernel_heap/kernel/src/time.rs 20_timer_callbacks/kernel/src/time.r
 +
 +        self.set_timeout(timeout);
 +    }
-+}
+ }
+
+ impl Default for TimeManager {
+@@ -61,3 +172,98 @@
+         Self::new()
+     }
+ }
 +
 +/// Initialize the timer subsystem.
 +pub fn init() -> Result<(), &'static str> {
@@ -658,7 +691,7 @@ diff -uNr 19_kernel_heap/kernel/src/time.rs 20_timer_callbacks/kernel/src/time.r
 +        &'static self,
 +        irq_number: &Self::IRQNumberType,
 +    ) -> Result<(), &'static str> {
-+        use exception::asynchronous::{irq_manager, IRQHandlerDescriptor};
++        use exception::asynchronous::{IRQHandlerDescriptor, irq_manager};
 +
 +        let descriptor = IRQHandlerDescriptor::new(*irq_number, Self::COMPATIBLE, self);
 +
@@ -721,7 +754,7 @@ diff -uNr 19_kernel_heap/kernel/src/time.rs 20_timer_callbacks/kernel/src/time.r
 +
 +        Ok(())
 +    }
- }
++}
 
 diff -uNr 19_kernel_heap/kernel/tests/boot_test_string.rb 20_timer_callbacks/kernel/tests/boot_test_string.rb
 --- 19_kernel_heap/kernel/tests/boot_test_string.rb
@@ -731,5 +764,17 @@ diff -uNr 19_kernel_heap/kernel/tests/boot_test_string.rb 20_timer_callbacks/ker
 
 -EXPECTED_PRINT = 'Echoing input now'
 +EXPECTED_PRINT = 'Once 5'
+
+diff -uNr 19_kernel_heap/kernel_symbols/kernel_symbols.ld 20_timer_callbacks/kernel_symbols/kernel_symbols.ld
+--- 19_kernel_heap/kernel_symbols/kernel_symbols.ld
++++ 20_timer_callbacks/kernel_symbols/kernel_symbols.ld
+@@ -1,6 +1,6 @@
+ /* SPDX-License-Identifier: MIT OR Apache-2.0
+  *
+- * Copyright (c) 2022 Andre Richter <andre.o.richter@gmail.com>
++ * Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
+  */
+
+ SECTIONS
 
 ```

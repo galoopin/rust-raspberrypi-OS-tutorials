@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2021-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2021-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Architectural translation table.
 //!
@@ -16,12 +16,11 @@
 use crate::{
     bsp,
     memory::{
-        self,
+        self, Address, Physical, Virtual,
         mmu::{
-            arch_mmu::{Granule512MiB, Granule64KiB},
             AccessPermissions, AttributeFields, MemAttributes, MemoryRegion, PageAddress,
+            arch_mmu::{Granule64KiB, Granule512MiB},
         },
-        Address, Physical, Virtual,
     },
 };
 use core::convert;
@@ -423,7 +422,8 @@ impl<const NUM_TABLES: usize> memory::mmu::translation_table::interface::Transla
             return Err("Tried to map outside of physical address space");
         }
 
-        let iter = phys_region.into_iter().zip(virt_region.into_iter());
+        let iter = phys_region.into_iter().zip(*virt_region);
+
         for (phys_page_addr, virt_page_addr) in iter {
             let new_desc = PageDescriptor::from_output_page_addr(phys_page_addr, attr);
             let virt_page = virt_page_addr;

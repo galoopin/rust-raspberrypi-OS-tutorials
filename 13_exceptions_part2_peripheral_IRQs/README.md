@@ -782,7 +782,7 @@ diff -uNr 12_integrated_testing/kernel/Cargo.toml 13_exceptions_part2_peripheral
 -version = "0.12.0"
 +version = "0.13.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
 
 diff -uNr 12_integrated_testing/kernel/src/_arch/aarch64/cpu/smp.rs 13_exceptions_part2_peripheral_IRQs/kernel/src/_arch/aarch64/cpu/smp.rs
@@ -791,7 +791,7 @@ diff -uNr 12_integrated_testing/kernel/src/_arch/aarch64/cpu/smp.rs 13_exception
 @@ -0,0 +1,30 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! Architectural symmetric multiprocessing.
 +//!
@@ -918,7 +918,7 @@ diff -uNr 12_integrated_testing/kernel/src/_arch/aarch64/exception.rs 13_excepti
 @@ -102,8 +103,9 @@
  }
 
- #[no_mangle]
+ #[unsafe(no_mangle)]
 -extern "C" fn current_elx_irq(e: &mut ExceptionContext) {
 -    default_exception_handler(e);
 +extern "C" fn current_elx_irq(_e: &mut ExceptionContext) {
@@ -926,7 +926,7 @@ diff -uNr 12_integrated_testing/kernel/src/_arch/aarch64/exception.rs 13_excepti
 +    exception::asynchronous::irq_manager().handle_pending_irqs(token);
  }
 
- #[no_mangle]
+ #[unsafe(no_mangle)]
 
 diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/arm/gicv2/gicc.rs 13_exceptions_part2_peripheral_IRQs/kernel/src/bsp/device_driver/arm/gicv2/gicc.rs
 --- 12_integrated_testing/kernel/src/bsp/device_driver/arm/gicv2/gicc.rs
@@ -934,7 +934,7 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/arm/gicv2/gicc.rs 1
 @@ -0,0 +1,141 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! GICC Driver - GIC CPU interface.
 +
@@ -1009,7 +1009,7 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/arm/gicv2/gicc.rs 1
 +    /// - The user must ensure to provide a correct MMIO start address.
 +    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
 +        Self {
-+            registers: Registers::new(mmio_start_addr),
++            registers: unsafe { Registers::new(mmio_start_addr) },
 +        }
 +    }
 +
@@ -1077,10 +1077,10 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/arm/gicv2/gicc.rs 1
 diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/arm/gicv2/gicd.rs 13_exceptions_part2_peripheral_IRQs/kernel/src/bsp/device_driver/arm/gicv2/gicd.rs
 --- 12_integrated_testing/kernel/src/bsp/device_driver/arm/gicv2/gicd.rs
 +++ 13_exceptions_part2_peripheral_IRQs/kernel/src/bsp/device_driver/arm/gicv2/gicd.rs
-@@ -0,0 +1,199 @@
+@@ -0,0 +1,201 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! GICD Driver - GIC Distributor.
 +//!
@@ -1210,8 +1210,10 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/arm/gicv2/gicd.rs 1
 +    /// - The user must ensure to provide a correct MMIO start address.
 +    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
 +        Self {
-+            shared_registers: IRQSafeNullLock::new(SharedRegisters::new(mmio_start_addr)),
-+            banked_registers: BankedRegisters::new(mmio_start_addr),
++            shared_registers: IRQSafeNullLock::new(unsafe {
++                SharedRegisters::new(mmio_start_addr)
++            }),
++            banked_registers: unsafe { BankedRegisters::new(mmio_start_addr) },
 +        }
 +    }
 +
@@ -1284,7 +1286,7 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/arm/gicv2.rs 13_exc
 @@ -0,0 +1,226 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! GICv2 Driver - ARM Generic Interrupt Controller v2.
 +//!
@@ -1411,8 +1413,8 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/arm/gicv2.rs 13_exc
 +    /// - The user must ensure to provide a correct MMIO start address.
 +    pub const unsafe fn new(gicd_mmio_start_addr: usize, gicc_mmio_start_addr: usize) -> Self {
 +        Self {
-+            gicd: gicd::GICD::new(gicd_mmio_start_addr),
-+            gicc: gicc::GICC::new(gicc_mmio_start_addr),
++            gicd: unsafe { gicd::GICD::new(gicd_mmio_start_addr) },
++            gicc: unsafe { gicc::GICC::new(gicc_mmio_start_addr) },
 +            handler_table: InitStateLock::new([None; IRQNumber::MAX_INCLUSIVE + 1]),
 +        }
 +    }
@@ -1515,7 +1517,7 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/arm.rs 13_exception
 @@ -0,0 +1,9 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! ARM driver top level.
 +
@@ -1546,16 +1548,16 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/bcm/bcm2xxx_gpio.rs
  }
 
  //--------------------------------------------------------------------------------------------------
-@@ -200,7 +200,7 @@
-     /// - The user must ensure to provide a correct MMIO start address.
+@@ -203,7 +203,7 @@
      pub const unsafe fn new(mmio_start_addr: usize) -> Self {
-         Self {
--            inner: NullLock::new(GPIOInner::new(mmio_start_addr)),
-+            inner: IRQSafeNullLock::new(GPIOInner::new(mmio_start_addr)),
+         unsafe {
+             Self {
+-                inner: NullLock::new(GPIOInner::new(mmio_start_addr)),
++                inner: IRQSafeNullLock::new(GPIOInner::new(mmio_start_addr)),
+             }
          }
      }
-
-@@ -216,6 +216,8 @@
+@@ -220,6 +220,8 @@
  use synchronization::interface::Mutex;
 
  impl driver::interface::DeviceDriver for GPIO {
@@ -1568,10 +1570,10 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/bcm/bcm2xxx_gpio.rs
 diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller/peripheral_ic.rs 13_exceptions_part2_peripheral_IRQs/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller/peripheral_ic.rs
 --- 12_integrated_testing/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller/peripheral_ic.rs
 +++ 13_exceptions_part2_peripheral_IRQs/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller/peripheral_ic.rs
-@@ -0,0 +1,170 @@
+@@ -0,0 +1,172 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! Peripheral Interrupt Controller Driver.
 +//!
@@ -1651,10 +1653,12 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/bcm/bcm2xxx_interru
 +    ///
 +    /// - The user must ensure to provide a correct MMIO start address.
 +    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
-+        Self {
-+            wo_registers: IRQSafeNullLock::new(WriteOnlyRegisters::new(mmio_start_addr)),
-+            ro_registers: ReadOnlyRegisters::new(mmio_start_addr),
-+            handler_table: InitStateLock::new([None; PeripheralIRQ::MAX_INCLUSIVE + 1]),
++        unsafe {
++            Self {
++                wo_registers: IRQSafeNullLock::new(WriteOnlyRegisters::new(mmio_start_addr)),
++                ro_registers: ReadOnlyRegisters::new(mmio_start_addr),
++                handler_table: InitStateLock::new([None; PeripheralIRQ::MAX_INCLUSIVE + 1]),
++            }
 +        }
 +    }
 +
@@ -1743,10 +1747,10 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/bcm/bcm2xxx_interru
 diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller.rs 13_exceptions_part2_peripheral_IRQs/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller.rs
 --- 12_integrated_testing/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller.rs
 +++ 13_exceptions_part2_peripheral_IRQs/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller.rs
-@@ -0,0 +1,152 @@
+@@ -0,0 +1,154 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! Interrupt Controller Driver.
 +
@@ -1838,8 +1842,10 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/bcm/bcm2xxx_interru
 +    ///
 +    /// - The user must ensure to provide a correct MMIO start address.
 +    pub const unsafe fn new(periph_mmio_start_addr: usize) -> Self {
-+        Self {
-+            periph: peripheral_ic::PeripheralIC::new(periph_mmio_start_addr),
++        unsafe {
++            Self {
++                periph: peripheral_ic::PeripheralIC::new(periph_mmio_start_addr),
++            }
 +        }
 +    }
 +}
@@ -1988,7 +1994,7 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/bcm/bcm2xxx_pl011_u
  }
 
  //--------------------------------------------------------------------------------------------------
-@@ -247,6 +299,14 @@
+@@ -249,6 +301,14 @@
              .LCR_H
              .write(LCR_H::WLEN::EightBit + LCR_H::FEN::FifosEnabled);
 
@@ -2003,16 +2009,16 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/bcm/bcm2xxx_pl011_u
          // Turn the UART on.
          self.registers
              .CR
-@@ -337,7 +397,7 @@
-     /// - The user must ensure to provide a correct MMIO start address.
+@@ -340,7 +400,7 @@
      pub const unsafe fn new(mmio_start_addr: usize) -> Self {
-         Self {
--            inner: NullLock::new(PL011UartInner::new(mmio_start_addr)),
-+            inner: IRQSafeNullLock::new(PL011UartInner::new(mmio_start_addr)),
+         unsafe {
+             Self {
+-                inner: NullLock::new(PL011UartInner::new(mmio_start_addr)),
++                inner: IRQSafeNullLock::new(PL011UartInner::new(mmio_start_addr)),
+             }
          }
      }
- }
-@@ -348,6 +408,8 @@
+@@ -352,6 +412,8 @@
  use synchronization::interface::Mutex;
 
  impl driver::interface::DeviceDriver for PL011Uart {
@@ -2021,7 +2027,7 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/bcm/bcm2xxx_pl011_u
      fn compatible(&self) -> &'static str {
          Self::COMPATIBLE
      }
-@@ -357,6 +419,20 @@
+@@ -361,6 +423,20 @@
 
          Ok(())
      }
@@ -2030,7 +2036,7 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/bcm/bcm2xxx_pl011_u
 +        &'static self,
 +        irq_number: &Self::IRQNumberType,
 +    ) -> Result<(), &'static str> {
-+        use exception::asynchronous::{irq_manager, IRQHandlerDescriptor};
++        use exception::asynchronous::{IRQHandlerDescriptor, irq_manager};
 +
 +        let descriptor = IRQHandlerDescriptor::new(*irq_number, Self::COMPATIBLE, self);
 +
@@ -2042,7 +2048,7 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/device_driver/bcm/bcm2xxx_pl011_u
  }
 
  impl console::interface::Write for PL011Uart {
-@@ -405,3 +481,24 @@
+@@ -409,3 +485,24 @@
  }
 
  impl console::interface::All for PL011Uart {}
@@ -2247,7 +2253,7 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/raspberrypi/exception/asynchronou
 @@ -0,0 +1,28 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! BSP asynchronous exception handling.
 +
@@ -2280,7 +2286,7 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/raspberrypi/exception.rs 13_excep
 @@ -0,0 +1,7 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! BSP synchronous and asynchronous exception handling.
 +
@@ -2327,6 +2333,18 @@ diff -uNr 12_integrated_testing/kernel/src/bsp/raspberrypi.rs 13_exceptions_part
 
  //--------------------------------------------------------------------------------------------------
 
+diff -uNr 12_integrated_testing/kernel/src/console/null_console.rs 13_exceptions_part2_peripheral_IRQs/kernel/src/console/null_console.rs
+--- 12_integrated_testing/kernel/src/console/null_console.rs
++++ 13_exceptions_part2_peripheral_IRQs/kernel/src/console/null_console.rs
+@@ -1,6 +1,6 @@
+ // SPDX-License-Identifier: MIT OR Apache-2.0
+ //
+-// Copyright (c) 2023-2025 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
+
+ //! Null console.
+
+
 diff -uNr 12_integrated_testing/kernel/src/console.rs 13_exceptions_part2_peripheral_IRQs/kernel/src/console.rs
 --- 12_integrated_testing/kernel/src/console.rs
 +++ 13_exceptions_part2_peripheral_IRQs/kernel/src/console.rs
@@ -2352,7 +2370,7 @@ diff -uNr 12_integrated_testing/kernel/src/console.rs 13_exceptions_part2_periph
  // Public Code
  //--------------------------------------------------------------------------------------------------
 -use synchronization::interface::Mutex;
-+use synchronization::{interface::ReadWriteEx, InitStateLock};
++use synchronization::{InitStateLock, interface::ReadWriteEx};
 
  /// Register a new console.
  pub fn register_console(new_console: &'static (dyn interface::All + Sync)) {
@@ -2374,7 +2392,7 @@ diff -uNr 12_integrated_testing/kernel/src/cpu/smp.rs 13_exceptions_part2_periph
 @@ -0,0 +1,14 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! Symmetric multiprocessing.
 +
@@ -2408,9 +2426,9 @@ diff -uNr 12_integrated_testing/kernel/src/driver.rs 13_exceptions_part2_periphe
 
  use crate::{
 -    info,
--    synchronization::{interface::Mutex, NullLock},
+-    synchronization::{NullLock, interface::Mutex},
 +    exception, info,
-+    synchronization::{interface::ReadWriteEx, InitStateLock},
++    synchronization::{InitStateLock, interface::ReadWriteEx},
  };
 +use core::fmt;
 
@@ -2577,33 +2595,44 @@ diff -uNr 12_integrated_testing/kernel/src/driver.rs 13_exceptions_part2_periphe
      /// - During init, drivers might do stuff with system-wide impact.
 -    pub unsafe fn init_drivers(&self) {
 +    pub unsafe fn init_drivers_and_irqs(&self) {
-         self.for_each_descriptor(|descriptor| {
-             // 1. Initialize driver.
-             if let Err(x) = descriptor.device_driver.init() {
-@@ -150,6 +187,23 @@
-                         descriptor.device_driver.compatible(),
-                         x
+         unsafe {
+             self.for_each_descriptor(|descriptor| {
+                 // 1. Initialize driver.
+@@ -154,6 +191,22 @@
                      );
-+                }
-+            }
-+        });
+                 }
+             });
 +
-+        // 3. After all post-init callbacks were done, the interrupt controller should be
-+        //    registered and functional. So let drivers register with it now.
-+        self.for_each_descriptor(|descriptor| {
-+            if let Some(irq_number) = &descriptor.irq_number {
-+                if let Err(x) = descriptor
-+                    .device_driver
-+                    .register_and_enable_irq_handler(irq_number)
++            // 3. After all post-init callbacks were done, the interrupt controller should be
++            //    registered and functional. So let drivers register with it now.
++            self.for_each_descriptor(|descriptor| {
++                if let Some(irq_number) = &descriptor.irq_number
++                    && let Err(x) = descriptor
++                        .device_driver
++                        .register_and_enable_irq_handler(irq_number)
 +                {
 +                    panic!(
 +                        "Error during driver interrupt handler registration: {}: {}",
 +                        descriptor.device_driver.compatible(),
 +                        x
 +                    );
-                 }
-             }
-         });
++                }
++            });
+         }
+     }
+
+@@ -168,7 +221,10 @@
+     }
+ }
+
+-impl Default for DriverManager {
++impl<T> Default for DriverManager<T>
++where
++    T: fmt::Display + Copy,
++{
+     fn default() -> Self {
+         Self::new()
+     }
 
 diff -uNr 12_integrated_testing/kernel/src/exception/asynchronous/null_irq_manager.rs 13_exceptions_part2_peripheral_IRQs/kernel/src/exception/asynchronous/null_irq_manager.rs
 --- 12_integrated_testing/kernel/src/exception/asynchronous/null_irq_manager.rs
@@ -2611,11 +2640,11 @@ diff -uNr 12_integrated_testing/kernel/src/exception/asynchronous/null_irq_manag
 @@ -0,0 +1,42 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2022-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! Null IRQ Manager.
 +
-+use super::{interface, IRQContext, IRQHandlerDescriptor};
++use super::{IRQContext, IRQHandlerDescriptor, interface};
 +
 +//--------------------------------------------------------------------------------------------------
 +// Public Definitions
@@ -2763,7 +2792,7 @@ diff -uNr 12_integrated_testing/kernel/src/exception/asynchronous.rs 13_exceptio
 +//--------------------------------------------------------------------------------------------------
 +// Public Code
 +//--------------------------------------------------------------------------------------------------
-+use synchronization::{interface::ReadWriteEx, InitStateLock};
++use synchronization::{InitStateLock, interface::ReadWriteEx};
 +
 +impl<T> IRQHandlerDescriptor<T>
 +where
@@ -2845,7 +2874,7 @@ diff -uNr 12_integrated_testing/kernel/src/exception/asynchronous.rs 13_exceptio
 diff -uNr 12_integrated_testing/kernel/src/lib.rs 13_exceptions_part2_peripheral_IRQs/kernel/src/lib.rs
 --- 12_integrated_testing/kernel/src/lib.rs
 +++ 13_exceptions_part2_peripheral_IRQs/kernel/src/lib.rs
-@@ -138,6 +138,7 @@
+@@ -133,6 +133,7 @@
  pub mod exception;
  pub mod memory;
  pub mod print;
@@ -2872,26 +2901,26 @@ diff -uNr 12_integrated_testing/kernel/src/main.rs 13_exceptions_part2_periphera
  ///       e.g. the yet-to-be-introduced spinlocks in the device drivers (which currently employ
 -///       NullLocks instead of spinlocks), will fail to work (properly) on the RPi SoCs.
 +///       IRQSafeNullLocks instead of spinlocks), will fail to work (properly) on the RPi SoCs.
- #[no_mangle]
+ #[unsafe(no_mangle)]
  unsafe fn kernel_init() -> ! {
-     use memory::mmu::interface::MMU;
-@@ -40,8 +40,13 @@
-     }
+     unsafe {
+@@ -41,8 +41,13 @@
+         }
 
-     // Initialize all device drivers.
--    driver::driver_manager().init_drivers();
--    // println! is usable from here on.
-+    driver::driver_manager().init_drivers_and_irqs();
+         // Initialize all device drivers.
+-        driver::driver_manager().init_drivers();
+-        // println! is usable from here on.
++        driver::driver_manager().init_drivers_and_irqs();
 +
-+    // Unmask interrupts on the boot CPU core.
-+    exception::asynchronous::local_irq_unmask();
++        // Unmask interrupts on the boot CPU core.
++        exception::asynchronous::local_irq_unmask();
 +
-+    // Announce conclusion of the kernel_init() phase.
-+    state::state_manager().transition_to_single_core_main();
++        // Announce conclusion of the kernel_init() phase.
++        state::state_manager().transition_to_single_core_main();
 
-     // Transition from unsafe to safe.
-     kernel_main()
-@@ -49,8 +54,6 @@
+         // Transition from unsafe to safe.
+         kernel_main()
+@@ -51,8 +56,6 @@
 
  /// The main function running after the early init.
  fn kernel_main() -> ! {
@@ -2900,7 +2929,7 @@ diff -uNr 12_integrated_testing/kernel/src/main.rs 13_exceptions_part2_periphera
      info!("{}", libkernel::version());
      info!("Booting on: {}", bsp::board_name());
 
-@@ -71,12 +74,9 @@
+@@ -73,12 +76,9 @@
      info!("Drivers loaded:");
      driver::driver_manager().enumerate();
 
@@ -2943,10 +2972,10 @@ diff -uNr 12_integrated_testing/kernel/src/panic_wait.rs 13_exceptions_part2_per
 diff -uNr 12_integrated_testing/kernel/src/state.rs 13_exceptions_part2_peripheral_IRQs/kernel/src/state.rs
 --- 12_integrated_testing/kernel/src/state.rs
 +++ 13_exceptions_part2_peripheral_IRQs/kernel/src/state.rs
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,98 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! State information about the kernel itself.
 +
@@ -3034,6 +3063,12 @@ diff -uNr 12_integrated_testing/kernel/src/state.rs 13_exceptions_part2_peripher
 +        {
 +            panic!("transition_to_single_core_main() called while state != Init");
 +        }
++    }
++}
++
++impl Default for StateManager {
++    fn default() -> Self {
++        Self::new()
 +    }
 +}
 
@@ -3175,10 +3210,10 @@ diff -uNr 12_integrated_testing/kernel/src/synchronization.rs 13_exceptions_part
 diff -uNr 12_integrated_testing/kernel/tests/04_exception_irq_sanity.rs 13_exceptions_part2_peripheral_IRQs/kernel/tests/04_exception_irq_sanity.rs
 --- 12_integrated_testing/kernel/tests/04_exception_irq_sanity.rs
 +++ 13_exceptions_part2_peripheral_IRQs/kernel/tests/04_exception_irq_sanity.rs
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,73 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! IRQ handling sanity tests.
 +
@@ -3189,13 +3224,14 @@ diff -uNr 12_integrated_testing/kernel/tests/04_exception_irq_sanity.rs 13_excep
 +#![test_runner(libkernel::test_runner)]
 +
 +use libkernel::{bsp, cpu, exception};
-+use test_macros::kernel_test;
 +
-+#[no_mangle]
-+unsafe fn kernel_init() -> ! {
++#[unsafe(no_mangle)]
++fn kernel_init() -> ! {
 +    bsp::driver::qemu_bring_up_console();
 +
-+    exception::handling_init();
++    unsafe {
++        exception::handling_init();
++    }
 +    exception::asynchronous::local_irq_unmask();
 +
 +    test_main();
@@ -3203,44 +3239,50 @@ diff -uNr 12_integrated_testing/kernel/tests/04_exception_irq_sanity.rs 13_excep
 +    cpu::qemu_exit_success()
 +}
 +
-+/// Check that IRQ masking works.
-+#[kernel_test]
-+fn local_irq_mask_works() {
-+    // Precondition: IRQs are unmasked.
-+    assert!(exception::asynchronous::is_local_irq_masked());
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use test_macros::kernel_test;
 +
-+    exception::asynchronous::local_irq_mask();
-+    assert!(!exception::asynchronous::is_local_irq_masked());
++    /// Check that IRQ masking works.
++    #[kernel_test]
++    fn local_irq_mask_works() {
++        // Precondition: IRQs are unmasked.
++        assert!(exception::asynchronous::is_local_irq_masked());
 +
-+    // Restore earlier state.
-+    exception::asynchronous::local_irq_unmask();
-+}
++        exception::asynchronous::local_irq_mask();
++        assert!(!exception::asynchronous::is_local_irq_masked());
 +
-+/// Check that IRQ unmasking works.
-+#[kernel_test]
-+fn local_irq_unmask_works() {
-+    // Precondition: IRQs are masked.
-+    exception::asynchronous::local_irq_mask();
-+    assert!(!exception::asynchronous::is_local_irq_masked());
++        // Restore earlier state.
++        exception::asynchronous::local_irq_unmask();
++    }
 +
-+    exception::asynchronous::local_irq_unmask();
-+    assert!(exception::asynchronous::is_local_irq_masked());
-+}
++    /// Check that IRQ unmasking works.
++    #[kernel_test]
++    fn local_irq_unmask_works() {
++        // Precondition: IRQs are masked.
++        exception::asynchronous::local_irq_mask();
++        assert!(!exception::asynchronous::is_local_irq_masked());
 +
-+/// Check that IRQ mask save is saving "something".
-+#[kernel_test]
-+fn local_irq_mask_save_works() {
-+    // Precondition: IRQs are unmasked.
-+    assert!(exception::asynchronous::is_local_irq_masked());
++        exception::asynchronous::local_irq_unmask();
++        assert!(exception::asynchronous::is_local_irq_masked());
++    }
 +
-+    let first = exception::asynchronous::local_irq_mask_save();
-+    assert!(!exception::asynchronous::is_local_irq_masked());
++    /// Check that IRQ mask save is saving "something".
++    #[kernel_test]
++    fn local_irq_mask_save_works() {
++        // Precondition: IRQs are unmasked.
++        assert!(exception::asynchronous::is_local_irq_masked());
 +
-+    let second = exception::asynchronous::local_irq_mask_save();
-+    assert_ne!(first, second);
++        let first = exception::asynchronous::local_irq_mask_save();
++        assert!(!exception::asynchronous::is_local_irq_masked());
 +
-+    exception::asynchronous::local_irq_restore(first);
-+    assert!(exception::asynchronous::is_local_irq_masked());
++        let second = exception::asynchronous::local_irq_mask_save();
++        assert_ne!(first, second);
++
++        exception::asynchronous::local_irq_restore(first);
++        assert!(exception::asynchronous::is_local_irq_masked());
++    }
 +}
 
 ```

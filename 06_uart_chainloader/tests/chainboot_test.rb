@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: MIT OR Apache-2.0
 #
-# Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
+# Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 
 require_relative '../../common/serial/minipush'
 require_relative '../../common/tests/boot_test'
@@ -64,7 +64,7 @@ class ChainbootTest < BootTest
 
     # override
     def finish
-        super()
+        super
         @test_output.map! { |x| x.gsub(/.*\r/, '  ') }
     end
 end

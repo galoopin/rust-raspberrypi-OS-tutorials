@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2021-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2021-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Architectural translation table.
 //!
@@ -16,8 +16,8 @@
 use crate::{
     bsp, memory,
     memory::mmu::{
-        arch_mmu::{Granule512MiB, Granule64KiB},
         AccessPermissions, AttributeFields, MemAttributes,
+        arch_mmu::{Granule64KiB, Granule512MiB},
     },
 };
 use core::convert;

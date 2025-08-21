@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! BSP Memory Management.
 //!
@@ -38,7 +38,7 @@ use core::cell::UnsafeCell;
 //--------------------------------------------------------------------------------------------------
 
 // Symbols from the linker script.
-extern "Rust" {
+unsafe extern "Rust" {
     static __code_start: UnsafeCell<()>;
     static __code_end_exclusive: UnsafeCell<()>;
 }

@@ -334,8 +334,32 @@ diff -uNr 15_virtual_mem_part3_precomputed_tables/kernel/Cargo.toml 16_virtual_m
 -version = "0.15.0"
 +version = "0.16.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
+@@ -16,9 +16,9 @@
+ internal_features = "allow"
+ unused_imports = "allow"
+
+-##-------------------------------------------------------------------------------------------------
++##--------------------------------------------------------------------------------------------------
+ ## Dependencies
+-##-------------------------------------------------------------------------------------------------
++##--------------------------------------------------------------------------------------------------
+
+ [dependencies]
+ test-types = { path = "../libraries/test-types" }
+@@ -33,9 +33,9 @@
+ [target.'cfg(target_arch = "aarch64")'.dependencies]
+ aarch64-cpu = { version = "9.x.x" }
+
+-##-------------------------------------------------------------------------------------------------
++##--------------------------------------------------------------------------------------------------
+ ## Testing
+-##-------------------------------------------------------------------------------------------------
++##--------------------------------------------------------------------------------------------------
+
+ [dev-dependencies]
+ test-macros = { path = "../libraries/test-macros" }
 
 diff -uNr 15_virtual_mem_part3_precomputed_tables/kernel/src/_arch/aarch64/cpu/boot.rs 16_virtual_mem_part4_higher_half_kernel/kernel/src/_arch/aarch64/cpu/boot.rs
 --- 15_virtual_mem_part3_precomputed_tables/kernel/src/_arch/aarch64/cpu/boot.rs
@@ -366,28 +390,30 @@ diff -uNr 15_virtual_mem_part3_precomputed_tables/kernel/src/_arch/aarch64/cpu/b
  }
 
  //--------------------------------------------------------------------------------------------------
-@@ -78,14 +81,19 @@
- #[no_mangle]
+@@ -78,16 +81,21 @@
+ #[unsafe(no_mangle)]
  pub unsafe extern "C" fn _start_rust(
      phys_kernel_tables_base_addr: u64,
 -    phys_boot_core_stack_end_exclusive_addr: u64,
 +    virt_boot_core_stack_end_exclusive_addr: u64,
 +    virt_kernel_init_addr: u64,
  ) -> ! {
--    prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr);
-+    prepare_el2_to_el1_transition(
-+        virt_boot_core_stack_end_exclusive_addr,
-+        virt_kernel_init_addr,
-+    );
+     unsafe {
+-        prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr);
++        prepare_el2_to_el1_transition(
++            virt_boot_core_stack_end_exclusive_addr,
++            virt_kernel_init_addr,
++        );
 
-     // Turn on the MMU for EL1.
-     let addr = Address::new(phys_kernel_tables_base_addr as usize);
-     memory::mmu::enable_mmu_and_caching(addr).unwrap();
+         // Turn on the MMU for EL1.
+         let addr = Address::new(phys_kernel_tables_base_addr as usize);
+         memory::mmu::enable_mmu_and_caching(addr).unwrap();
 
--    // Use `eret` to "return" to EL1. This results in execution of kernel_init() in EL1.
-+    // Use `eret` to "return" to EL1. Since virtual memory will already be enabled, this results in
-+    // execution of kernel_init() in EL1 from its _virtual address_.
-     asm::eret()
+-        // Use `eret` to "return" to EL1. This results in execution of kernel_init() in EL1.
++        // Use `eret` to "return" to EL1. Since virtual memory will already be enabled, this results
++        // in execution of kernel_init() in EL1 from its _virtual address_.
+         asm::eret()
+     }
  }
 
 diff -uNr 15_virtual_mem_part3_precomputed_tables/kernel/src/_arch/aarch64/cpu/boot.s 16_virtual_mem_part4_higher_half_kernel/kernel/src/_arch/aarch64/cpu/boot.s
@@ -456,7 +482,7 @@ diff -uNr 15_virtual_mem_part3_precomputed_tables/kernel/src/_arch/aarch64/cpu/b
 diff -uNr 15_virtual_mem_part3_precomputed_tables/kernel/src/_arch/aarch64/memory/mmu/translation_table.rs 16_virtual_mem_part4_higher_half_kernel/kernel/src/_arch/aarch64/memory/mmu/translation_table.rs
 --- 15_virtual_mem_part3_precomputed_tables/kernel/src/_arch/aarch64/memory/mmu/translation_table.rs
 +++ 16_virtual_mem_part4_higher_half_kernel/kernel/src/_arch/aarch64/memory/mmu/translation_table.rs
-@@ -136,7 +136,7 @@
+@@ -135,7 +135,7 @@
  /// aligned, so the lvl3 is put first.
  #[repr(C)]
  #[repr(align(65536))]
@@ -465,7 +491,7 @@ diff -uNr 15_virtual_mem_part3_precomputed_tables/kernel/src/_arch/aarch64/memor
      /// Page descriptors, covering 64 KiB windows per entry.
      lvl3: [[PageDescriptor; 8192]; NUM_TABLES],
 
-@@ -302,10 +302,19 @@
+@@ -301,10 +301,19 @@
  where
      [u8; Self::SIZE >> Granule512MiB::SHIFT]: Sized,
  {
@@ -487,7 +513,7 @@ diff -uNr 15_virtual_mem_part3_precomputed_tables/kernel/src/_arch/aarch64/memor
      /// Create an instance.
      #[allow(clippy::assertions_on_constants)]
      const fn _new(for_precompute: bool) -> Self {
-@@ -336,9 +345,14 @@
+@@ -335,9 +344,14 @@
          &self,
          virt_page_addr: PageAddress<Virtual>,
      ) -> Result<(usize, usize), &'static str> {
@@ -505,7 +531,7 @@ diff -uNr 15_virtual_mem_part3_precomputed_tables/kernel/src/_arch/aarch64/memor
 
          if lvl2_index > (NUM_TABLES - 1) {
              return Err("Virtual page is out of bounds of translation table");
-@@ -384,8 +398,9 @@
+@@ -383,8 +397,9 @@
  // OS Interface Code
  //------------------------------------------------------------------------------
 
@@ -743,12 +769,12 @@ diff -uNr 15_virtual_mem_part3_precomputed_tables/kernel/src/bsp/raspberrypi/mem
 diff -uNr 15_virtual_mem_part3_precomputed_tables/kernel/src/lib.rs 16_virtual_mem_part4_higher_half_kernel/kernel/src/lib.rs
 --- 15_virtual_mem_part3_precomputed_tables/kernel/src/lib.rs
 +++ 16_virtual_mem_part4_higher_half_kernel/kernel/src/lib.rs
-@@ -157,11 +157,6 @@
+@@ -151,11 +151,6 @@
      )
  }
 
 -#[cfg(not(test))]
--extern "Rust" {
+-unsafe extern "Rust" {
 -    fn kernel_init() -> !;
 -}
 -
@@ -817,7 +843,7 @@ diff -uNr 15_virtual_mem_part3_precomputed_tables/kernel/src/memory/mmu.rs 16_vi
 diff -uNr 15_virtual_mem_part3_precomputed_tables/kernel/tests/02_exception_sync_page_fault.rs 16_virtual_mem_part4_higher_half_kernel/kernel/tests/02_exception_sync_page_fault.rs
 --- 15_virtual_mem_part3_precomputed_tables/kernel/tests/02_exception_sync_page_fault.rs
 +++ 16_virtual_mem_part4_higher_half_kernel/kernel/tests/02_exception_sync_page_fault.rs
-@@ -28,8 +28,8 @@
+@@ -30,8 +30,8 @@
      // This line will be printed as the test header.
      println!("Testing synchronous exception handling by causing a page fault");
 
@@ -825,9 +851,9 @@ diff -uNr 15_virtual_mem_part3_precomputed_tables/kernel/tests/02_exception_sync
 -    let big_addr: u64 = 9 * 1024 * 1024 * 1024;
 +    info!("Writing to bottom of address space to address 1 GiB...");
 +    let big_addr: u64 = 1024 * 1024 * 1024;
-     core::ptr::read_volatile(big_addr as *mut u64);
-
-     // If execution reaches here, the memory access above did not cause a page fault exception.
+     unsafe {
+         core::ptr::read_volatile(big_addr as *mut u64);
+     }
 
 diff -uNr 15_virtual_mem_part3_precomputed_tables/tools/translation_table_tool/arch.rb 16_virtual_mem_part4_higher_half_kernel/tools/translation_table_tool/arch.rb
 --- 15_virtual_mem_part3_precomputed_tables/tools/translation_table_tool/arch.rb

@@ -3,7 +3,7 @@
 
 # SPDX-License-Identifier: MIT OR Apache-2.0
 #
-# Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
+# Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 
 require 'rubygems'
 require 'bundler/setup'
@@ -188,7 +188,7 @@ class DevTool
     end
 
     def copyright
-        exit(1) unless copyright_check_files(copyright_source_files)
+        exit(1) unless copyright_check_files?(copyright_source_files)
     end
 
     def misspell
@@ -227,8 +227,6 @@ class DevTool
         test_integration('rpi3')
         clean
     end
-
-    private
 
     SUPPORTED_BSPS = %w[rpi3 rpi4].freeze
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2022-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Architectural backtracing support.
 //!
@@ -120,7 +120,9 @@ pub fn backtrace(f: impl FnOnce(Option<&mut dyn Iterator<Item = BacktraceItem>>)
 /// - To be used only by testing code.
 pub unsafe fn corrupt_previous_frame_addr() {
     let sf = FP.get() as *mut usize;
-    *sf = 0x123;
+    unsafe {
+        *sf = 0x123;
+    }
 }
 
 #[cfg(feature = "test_build")]
@@ -132,5 +134,7 @@ pub unsafe fn corrupt_previous_frame_addr() {
 /// - To be used only by testing code.
 pub unsafe fn corrupt_link() {
     let sf = FP.get() as *mut StackFrameRecord;
-    (*sf).link = Address::new(0x456);
+    unsafe {
+        (*sf).link = Address::new(0x456);
+    }
 }

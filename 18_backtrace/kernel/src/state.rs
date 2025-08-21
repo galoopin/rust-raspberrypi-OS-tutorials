@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! State information about the kernel itself.
 
@@ -88,5 +88,11 @@ impl StateManager {
         {
             panic!("transition_to_single_core_main() called while state != Init");
         }
+    }
+}
+
+impl Default for StateManager {
+    fn default() -> Self {
+        Self::new()
     }
 }

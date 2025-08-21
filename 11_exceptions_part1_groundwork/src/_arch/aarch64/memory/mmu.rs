@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Memory Management Unit Driver.
 //!
@@ -15,7 +15,7 @@
 
 use crate::{
     bsp, memory,
-    memory::mmu::{translation_table::KernelTranslationTable, TranslationGranule},
+    memory::mmu::{TranslationGranule, translation_table::KernelTranslationTable},
 };
 use aarch64_cpu::{asm::barrier, registers::*};
 use core::intrinsics::unlikely;
@@ -63,7 +63,7 @@ impl<const AS_SIZE: usize> memory::mmu::AddressSpace<AS_SIZE> {
     /// Checks for architectural restrictions.
     pub const fn arch_address_space_size_sanity_checks() {
         // Size must be at least one full 512 MiB table.
-        assert!((AS_SIZE % Granule512MiB::SIZE) == 0);
+        assert!(AS_SIZE.is_multiple_of(Granule512MiB::SIZE));
 
         // Check for 48 bit virtual address size as maximum, which is supported by any ARMv8
         // version.
@@ -120,42 +120,50 @@ use memory::mmu::MMUEnableError;
 
 impl memory::mmu::interface::MMU for MemoryManagementUnit {
     unsafe fn enable_mmu_and_caching(&self) -> Result<(), MMUEnableError> {
-        if unlikely(self.is_enabled()) {
-            return Err(MMUEnableError::AlreadyEnabled);
+        unsafe {
+            if unlikely(self.is_enabled()) {
+                return Err(MMUEnableError::AlreadyEnabled);
+            }
+
+            // Fail early if translation granule is not supported.
+            if unlikely(!ID_AA64MMFR0_EL1.matches_all(ID_AA64MMFR0_EL1::TGran64::Supported)) {
+                return Err(MMUEnableError::Other(
+                    "Translation granule not supported in HW",
+                ));
+            }
+
+            // Prepare the memory attribute indirection register.
+            self.set_up_mair();
+
+            // create a raw pointer
+            let raw_ptr = &raw mut KERNEL_TABLES;
+            // Dereference the raw pointer to get a reference
+            let kernel_tables = &mut *raw_ptr;
+
+            // Populate translation tables.
+            kernel_tables
+                .populate_tt_entries()
+                .map_err(MMUEnableError::Other)?;
+
+            // Set the "Translation Table Base Register"
+            TTBR0_EL1.set_baddr(kernel_tables.phys_base_address());
+
+            self.configure_translation_control();
+
+            // Switch the MMU on.
+            //
+            // First, force all previous changes to be seen before the MMU is enabled.
+            barrier::isb(barrier::SY);
+
+            // Enable the MMU and turn on data and instruction caching.
+            SCTLR_EL1
+                .modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
+
+            // Force MMU init to complete before next instruction.
+            barrier::isb(barrier::SY);
+
+            Ok(())
         }
-
-        // Fail early if translation granule is not supported.
-        if unlikely(!ID_AA64MMFR0_EL1.matches_all(ID_AA64MMFR0_EL1::TGran64::Supported)) {
-            return Err(MMUEnableError::Other(
-                "Translation granule not supported in HW",
-            ));
-        }
-
-        // Prepare the memory attribute indirection register.
-        self.set_up_mair();
-
-        // Populate translation tables.
-        KERNEL_TABLES
-            .populate_tt_entries()
-            .map_err(MMUEnableError::Other)?;
-
-        // Set the "Translation Table Base Register".
-        TTBR0_EL1.set_baddr(KERNEL_TABLES.phys_base_address());
-
-        self.configure_translation_control();
-
-        // Switch the MMU on.
-        //
-        // First, force all previous changes to be seen before the MMU is enabled.
-        barrier::isb(barrier::SY);
-
-        // Enable the MMU and turn on data and instruction caching.
-        SCTLR_EL1.modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
-
-        // Force MMU init to complete before next instruction.
-        barrier::isb(barrier::SY);
-
-        Ok(())
     }
 
     #[inline(always)]

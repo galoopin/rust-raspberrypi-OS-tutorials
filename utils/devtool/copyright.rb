@@ -2,13 +2,13 @@
 
 # SPDX-License-Identifier: MIT OR Apache-2.0
 #
-# Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
+# Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
 
 require 'rubygems'
 require 'bundler/setup'
 require 'colorize'
 
-def copyright_check_files(source_files)
+def copyright_check_files?(source_files)
     source_files.sort.each do |f|
         puts 'Checking for copyright: '.light_blue + f.to_s
 
@@ -23,9 +23,8 @@ def copyright_check_files(source_files)
 end
 
 def copyright_years(file)
-    years = []
-    File.readlines(file).grep(/.*Copyright.*/).each do |x|
-        years << x.scan(/\d\d\d\d/).map!(&:to_i)
+    years = File.readlines(file).grep(/.*Copyright.*/).map do |x|
+        x.scan(/\d\d\d\d/).map!(&:to_i)
     end
 
     years.flatten

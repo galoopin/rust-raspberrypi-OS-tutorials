@@ -2,13 +2,18 @@
 name = "mingo"
 version = "0.17.0"
 authors = ["Andre Richter <andre.o.richter@gmail.com>"]
-edition = "2021"
+edition = "2024"
 
 [features]
 default = []
 bsp_rpi3 = ["tock-registers"]
 bsp_rpi4 = ["tock-registers"]
 test_build = ["qemu-exit"]
+
+[lints.rust]
+dead_code = "allow"
+internal_features = "allow"
+unused_imports = "allow"
 
 ##--------------------------------------------------------------------------------------------------
 ## Dependencies
@@ -19,7 +24,9 @@ test-types = { path = "../libraries/test-types" }
 debug-symbol-types = { path = "../libraries/debug-symbol-types" }
 
 # Optional dependencies
-tock-registers = { version = "0.8.x", default-features = false, features = ["register_types"], optional = true }
+tock-registers = { version = "0.8.x", default-features = false, features = [
+    "register_types",
+], optional = true }
 qemu-exit = { version = "3.x.x", optional = true }
 
 # Platform specific dependencies

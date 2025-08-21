@@ -276,7 +276,7 @@ diff -uNr 18_backtrace/kernel/Cargo.toml 19_kernel_heap/kernel/Cargo.toml
 -version = "0.18.0"
 +version = "0.19.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
  [features]
  default = []
@@ -284,14 +284,16 @@ diff -uNr 18_backtrace/kernel/Cargo.toml 19_kernel_heap/kernel/Cargo.toml
  bsp_rpi3 = ["tock-registers"]
  bsp_rpi4 = ["tock-registers"]
  test_build = ["qemu-exit"]
-@@ -17,6 +18,7 @@
+@@ -23,6 +24,9 @@
  [dependencies]
  test-types = { path = "../libraries/test-types" }
  debug-symbol-types = { path = "../libraries/debug-symbol-types" }
-+linked_list_allocator = { version = "0.10.x", default-features = false, features = ["const_mut_refs"] }
++linked_list_allocator = { version = "0.10.x", default-features = false, features = [
++    "const_mut_refs",
++] }
 
  # Optional dependencies
- tock-registers = { version = "0.8.x", default-features = false, features = ["register_types"], optional = true }
+ tock-registers = { version = "0.8.x", default-features = false, features = [
 
 diff -uNr 18_backtrace/kernel/src/bsp/device_driver/arm/gicv2.rs 19_kernel_heap/kernel/src/bsp/device_driver/arm/gicv2.rs
 --- 18_backtrace/kernel/src/bsp/device_driver/arm/gicv2.rs
@@ -323,8 +325,8 @@ diff -uNr 18_backtrace/kernel/src/bsp/device_driver/arm/gicv2.rs 19_kernel_heap/
 
 @@ -134,7 +134,7 @@
          Self {
-             gicd: gicd::GICD::new(gicd_mmio_start_addr),
-             gicc: gicc::GICC::new(gicc_mmio_start_addr),
+             gicd: unsafe { gicd::GICD::new(gicd_mmio_start_addr) },
+             gicc: unsafe { gicc::GICC::new(gicc_mmio_start_addr) },
 -            handler_table: InitStateLock::new([None; IRQNumber::MAX_INCLUSIVE + 1]),
 +            handler_table: InitStateLock::new(Vec::new()),
          }
@@ -362,12 +364,13 @@ diff -uNr 18_backtrace/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_contro
 
  //--------------------------------------------------------------------------------------------------
  // Public Definitions
-@@ -85,10 +85,16 @@
-         Self {
-             wo_registers: IRQSafeNullLock::new(WriteOnlyRegisters::new(mmio_start_addr)),
-             ro_registers: ReadOnlyRegisters::new(mmio_start_addr),
--            handler_table: InitStateLock::new([None; PeripheralIRQ::MAX_INCLUSIVE + 1]),
-+            handler_table: InitStateLock::new(Vec::new()),
+@@ -86,11 +86,17 @@
+             Self {
+                 wo_registers: IRQSafeNullLock::new(WriteOnlyRegisters::new(mmio_start_addr)),
+                 ro_registers: ReadOnlyRegisters::new(mmio_start_addr),
+-                handler_table: InitStateLock::new([None; PeripheralIRQ::MAX_INCLUSIVE + 1]),
++                handler_table: InitStateLock::new(Vec::new()),
+             }
          }
      }
 
@@ -384,7 +387,7 @@ diff -uNr 18_backtrace/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_contro
 diff -uNr 18_backtrace/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller.rs 19_kernel_heap/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller.rs
 --- 18_backtrace/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller.rs
 +++ 19_kernel_heap/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_controller.rs
-@@ -109,6 +109,12 @@
+@@ -111,6 +111,12 @@
      fn compatible(&self) -> &'static str {
          Self::COMPATIBLE
      }
@@ -401,7 +404,7 @@ diff -uNr 18_backtrace/kernel/src/bsp/device_driver/bcm/bcm2xxx_interrupt_contro
 diff -uNr 18_backtrace/kernel/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs 19_kernel_heap/kernel/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs
 --- 18_backtrace/kernel/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs
 +++ 19_kernel_heap/kernel/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs
-@@ -327,6 +327,13 @@
+@@ -329,6 +329,13 @@
          self.chars_written += 1;
      }
 
@@ -415,7 +418,7 @@ diff -uNr 18_backtrace/kernel/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs 19
      /// Block execution until the last buffered character has been physically put on the TX wire.
      fn flush(&self) {
          // Spin until the busy bit is cleared.
-@@ -443,6 +450,10 @@
+@@ -447,6 +454,10 @@
          self.inner.lock(|inner| inner.write_char(c));
      }
 
@@ -563,7 +566,7 @@ diff -uNr 18_backtrace/kernel/src/console/buffer_console.rs 19_kernel_heap/kerne
 @@ -0,0 +1,108 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2022-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! A console that buffers input during the init phase.
 +
@@ -676,7 +679,7 @@ diff -uNr 18_backtrace/kernel/src/console/null_console.rs 19_kernel_heap/kernel/
 @@ -1,41 +0,0 @@
 -// SPDX-License-Identifier: MIT OR Apache-2.0
 -//
--// Copyright (c) 2022-2023 Andre Richter <andre.o.richter@gmail.com>
+-// Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
 -
 -//! Null console.
 -
@@ -769,7 +772,7 @@ diff -uNr 18_backtrace/kernel/src/driver.rs 19_kernel_heap/kernel/src/driver.rs
 +++ 19_kernel_heap/kernel/src/driver.rs
 @@ -8,23 +8,10 @@
      exception, info,
-     synchronization::{interface::ReadWriteEx, InitStateLock},
+     synchronization::{InitStateLock, interface::ReadWriteEx},
  };
 +use alloc::vec::Vec;
  use core::fmt;
@@ -870,68 +873,57 @@ diff -uNr 18_backtrace/kernel/src/driver.rs 19_kernel_heap/kernel/src/driver.rs
      }
 
      /// Fully initialize all drivers and their interrupts handlers.
-@@ -169,53 +125,54 @@
-     ///
+@@ -170,60 +126,61 @@
      /// - During init, drivers might do stuff with system-wide impact.
      pub unsafe fn init_drivers_and_irqs(&self) {
--        self.for_each_descriptor(|descriptor| {
--            // 1. Initialize driver.
--            if let Err(x) = descriptor.device_driver.init() {
--                panic!(
--                    "Error initializing driver: {}: {}",
--                    descriptor.device_driver.compatible(),
--                    x
--                );
--            }
--
--            // 2. Call corresponding post init callback.
--            if let Some(callback) = &descriptor.post_init_callback {
--                if let Err(x) = callback() {
-+        self.descriptors.read(|descriptors| {
-+            for descriptor in descriptors {
-+                // 1. Initialize driver.
-+                if let Err(x) = descriptor.device_driver.init() {
-                     panic!(
--                        "Error during driver post-init callback: {}: {}",
-+                        "Error initializing driver: {}: {}",
-                         descriptor.device_driver.compatible(),
-                         x
-                     );
-                 }
+         unsafe {
+-            self.for_each_descriptor(|descriptor| {
+-                // 1. Initialize driver.
+-                if let Err(x) = descriptor.device_driver.init() {
+-                    panic!(
+-                        "Error initializing driver: {}: {}",
+-                        descriptor.device_driver.compatible(),
+-                        x
+-                    );
++            self.descriptors.read(|descriptors| {
++                for descriptor in descriptors {
++                    // 1. Initialize driver.
++                    if let Err(x) = descriptor.device_driver.init() {
++                        panic!(
++                            "Error initializing driver: {}: {}",
++                            descriptor.device_driver.compatible(),
++                            x
++                        );
++                    }
 +
-+                // 2. Call corresponding post init callback.
-+                if let Some(callback) = &descriptor.post_init_callback {
-+                    if let Err(x) = callback() {
++                    // 2. Call corresponding post init callback.
++                    if let Some(callback) = &descriptor.post_init_callback
++                        && let Err(x) = callback()
++                    {
 +                        panic!(
 +                            "Error during driver post-init callback: {}: {}",
 +                            descriptor.device_driver.compatible(),
 +                            x
 +                        );
 +                    }
-+                }
-             }
--        });
+                 }
 
--        // 3. After all post-init callbacks were done, the interrupt controller should be
--        //    registered and functional. So let drivers register with it now.
--        self.for_each_descriptor(|descriptor| {
--            if let Some(irq_number) = &descriptor.irq_number {
--                if let Err(x) = descriptor
--                    .device_driver
--                    .register_and_enable_irq_handler(irq_number)
+-                // 2. Call corresponding post init callback.
+-                if let Some(callback) = &descriptor.post_init_callback
+-                    && let Err(x) = callback()
 -                {
 -                    panic!(
--                        "Error during driver interrupt handler registration: {}: {}",
+-                        "Error during driver post-init callback: {}: {}",
 -                        descriptor.device_driver.compatible(),
 -                        x
 -                    );
-+            // 3. After all post-init callbacks were done, the interrupt controller should be
-+            //    registered and functional. So let drivers register with it now.
-+            for descriptor in descriptors {
-+                if let Some(irq_number) = &descriptor.irq_number {
-+                    if let Err(x) = descriptor
-+                        .device_driver
-+                        .register_and_enable_irq_handler(irq_number)
++                // 3. After all post-init callbacks were done, the interrupt controller should be
++                //    registered and functional. So let drivers register with it now.
++                for descriptor in descriptors {
++                    if let Some(irq_number) = &descriptor.irq_number
++                        && let Err(x) = descriptor
++                            .device_driver
++                            .register_and_enable_irq_handler(irq_number)
 +                    {
 +                        panic!(
 +                            "Error during driver interrupt handler registration: {}: {}",
@@ -940,9 +932,25 @@ diff -uNr 18_backtrace/kernel/src/driver.rs 19_kernel_heap/kernel/src/driver.rs
 +                        );
 +                    }
                  }
-             }
--        });
-+        })
+-            });
+-
+-            // 3. After all post-init callbacks were done, the interrupt controller should be
+-            //    registered and functional. So let drivers register with it now.
+-            self.for_each_descriptor(|descriptor| {
+-                if let Some(irq_number) = &descriptor.irq_number
+-                    && let Err(x) = descriptor
+-                        .device_driver
+-                        .register_and_enable_irq_handler(irq_number)
+-                {
+-                    panic!(
+-                        "Error during driver interrupt handler registration: {}: {}",
+-                        descriptor.device_driver.compatible(),
+-                        x
+-                    );
+-                }
+-            });
++            })
+         }
      }
 
      /// Enumerate all registered device drivers.
@@ -960,6 +968,14 @@ diff -uNr 18_backtrace/kernel/src/driver.rs 19_kernel_heap/kernel/src/driver.rs
      }
  }
 
+ impl<T> Default for DriverManager<T>
+ where
+-    T: fmt::Display + Copy,
++    T: fmt::Display,
+ {
+     fn default() -> Self {
+         Self::new()
+
 diff -uNr 18_backtrace/kernel/src/lib.rs 19_kernel_heap/kernel/src/lib.rs
 --- 18_backtrace/kernel/src/lib.rs
 +++ 19_kernel_heap/kernel/src/lib.rs
@@ -968,10 +984,10 @@ diff -uNr 18_backtrace/kernel/src/lib.rs 19_kernel_heap/kernel/src/lib.rs
  #![allow(clippy::upper_case_acronyms)]
  #![allow(incomplete_features)]
 +#![feature(alloc_error_handler)]
- #![feature(asm_const)]
- #![feature(const_option)]
  #![feature(core_intrinsics)]
-@@ -130,6 +131,8 @@
+ #![feature(format_args_nl)]
+ #![feature(generic_const_exprs)]
+@@ -124,6 +125,8 @@
  #![reexport_test_harness_main = "test_main"]
  #![test_runner(crate::test_runner)]
 
@@ -993,7 +1009,7 @@ diff -uNr 18_backtrace/kernel/src/main.rs 19_kernel_heap/kernel/src/main.rs
  use libkernel::{bsp, cpu, driver, exception, info, memory, state, time};
 
  /// Early init code.
-@@ -73,6 +75,9 @@
+@@ -75,6 +77,9 @@
      info!("Registered IRQ handlers:");
      exception::asynchronous::irq_manager().print_handler();
 
@@ -1007,10 +1023,10 @@ diff -uNr 18_backtrace/kernel/src/main.rs 19_kernel_heap/kernel/src/main.rs
 diff -uNr 18_backtrace/kernel/src/memory/heap_alloc.rs 19_kernel_heap/kernel/src/memory/heap_alloc.rs
 --- 18_backtrace/kernel/src/memory/heap_alloc.rs
 +++ 19_kernel_heap/kernel/src/memory/heap_alloc.rs
-@@ -0,0 +1,147 @@
+@@ -0,0 +1,155 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
-+// Copyright (c) 2022-2023 Andre Richter <andre.o.richter@gmail.com>
++// Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
 +
 +//! Heap allocation.
 +
@@ -1112,6 +1128,12 @@ diff -uNr 18_backtrace/kernel/src/memory/heap_alloc.rs 19_kernel_heap/kernel/src
 +    }
 +}
 +
++impl Default for HeapAllocator {
++    fn default() -> Self {
++        Self::new()
++    }
++}
++
 +unsafe impl GlobalAlloc for HeapAllocator {
 +    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
 +        let result = KERNEL_HEAP_ALLOCATOR
@@ -1131,11 +1153,13 @@ diff -uNr 18_backtrace/kernel/src/memory/heap_alloc.rs 19_kernel_heap/kernel/src
 +    }
 +
 +    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-+        KERNEL_HEAP_ALLOCATOR
-+            .inner
-+            .lock(|inner| inner.deallocate(core::ptr::NonNull::new_unchecked(ptr), layout));
++        unsafe {
++            KERNEL_HEAP_ALLOCATOR
++                .inner
++                .lock(|inner| inner.deallocate(core::ptr::NonNull::new_unchecked(ptr), layout));
 +
-+        debug_print_alloc_dealloc("Free", ptr, layout);
++            debug_print_alloc_dealloc("Free", ptr, layout);
++        }
 +    }
 +}
 +
@@ -1280,16 +1304,16 @@ diff -uNr 18_backtrace/kernel/src/memory/mmu/mapping_record.rs 19_kernel_heap/ke
      }
 
      pub fn print(&self) {
-@@ -147,7 +117,7 @@
+@@ -151,7 +121,7 @@
+             "      -------------------------------------------------------------------------------------------------------------------------------------------"
          );
-         info!("      -------------------------------------------------------------------------------------------------------------------------------------------");
 
 -        for i in self.inner.iter().flatten() {
 +        for i in self.inner.iter() {
              let size = i.num_pages * bsp::memory::mmu::KernelGranule::SIZE;
              let virt_start = i.virt_start_addr;
              let virt_end_inclusive = virt_start + (size - 1);
-@@ -183,16 +153,14 @@
+@@ -187,16 +157,14 @@
                  attr,
                  acc_p,
                  xn,
@@ -1300,17 +1324,19 @@ diff -uNr 18_backtrace/kernel/src/memory/mmu/mapping_record.rs 19_kernel_heap/ke
 -            for k in i.users[1..].iter() {
 -                if let Some(additional_user) = *k {
 -                    info!(
+-                        "                                                                                                            | {}",
+-                        additional_user
+-                    );
+-                }
 +            for k in &i.users[1..] {
 +                info!(
-                         "                                                                                                            | {}",
--                        additional_user
-+                        k
-                     );
--                }
++                    "                                                                                                            | {}",
++                    k
++                );
              }
          }
 
-@@ -211,7 +179,7 @@
+@@ -217,7 +185,7 @@
      virt_region: &MemoryRegion<Virtual>,
      phys_region: &MemoryRegion<Physical>,
      attr: &AttributeFields,
@@ -1319,7 +1345,7 @@ diff -uNr 18_backtrace/kernel/src/memory/mmu/mapping_record.rs 19_kernel_heap/ke
      KERNEL_MAPPING_RECORD.write(|mr| mr.add(name, virt_region, phys_region, attr))
  }
 
-@@ -224,9 +192,7 @@
+@@ -230,9 +198,7 @@
      KERNEL_MAPPING_RECORD.write(|mr| {
          let dup = mr.find_duplicate(&phys_region)?;
 
@@ -1342,7 +1368,7 @@ diff -uNr 18_backtrace/kernel/src/memory/mmu.rs 19_kernel_heap/kernel/src/memory
  };
  use core::{fmt, num::NonZeroUsize};
 
-@@ -176,9 +175,7 @@
+@@ -178,9 +177,7 @@
      phys_region: &MemoryRegion<Physical>,
      attr: &AttributeFields,
  ) {
@@ -1385,7 +1411,7 @@ diff -uNr 18_backtrace/kernel/src/print.rs 19_kernel_heap/kernel/src/print.rs
 +/// Debug print, with a newline.
 +#[macro_export]
 +macro_rules! debug {
-+    ($string:expr) => ({
++    ($string:expr_2021) => ({
 +        if cfg!(feature = "debug_prints") {
 +            let timestamp = $crate::time::time_manager().uptime();
 +
@@ -1396,7 +1422,7 @@ diff -uNr 18_backtrace/kernel/src/print.rs 19_kernel_heap/kernel/src/print.rs
 +            ));
 +        }
 +    });
-+    ($format_string:expr, $($arg:tt)*) => ({
++    ($format_string:expr_2021, $($arg:tt)*) => ({
 +        if cfg!(feature = "debug_prints") {
 +            let timestamp = $crate::time::time_manager().uptime();
 +

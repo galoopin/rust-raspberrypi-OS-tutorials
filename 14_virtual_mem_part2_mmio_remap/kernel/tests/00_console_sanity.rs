@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2019-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2019-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Console sanity tests - RX, TX and statistics.
 
@@ -13,18 +13,20 @@ mod panic_wait_forever;
 
 use libkernel::{bsp, console, cpu, exception, memory, print};
 
-#[no_mangle]
-unsafe fn kernel_init() -> ! {
+#[unsafe(no_mangle)]
+fn kernel_init() -> ! {
     use console::console;
 
-    exception::handling_init();
+    unsafe {
+        exception::handling_init();
+    }
 
-    let phys_kernel_tables_base_addr = match memory::mmu::kernel_map_binary() {
+    let phys_kernel_tables_base_addr = match unsafe { memory::mmu::kernel_map_binary() } {
         Err(string) => panic!("Error mapping kernel binary: {}", string),
         Ok(addr) => addr,
     };
 
-    if let Err(e) = memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) {
+    if let Err(e) = unsafe { memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) } {
         panic!("Enabling MMU failed: {}", e);
     }
 

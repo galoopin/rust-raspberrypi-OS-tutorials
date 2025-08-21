@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2020-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2020-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Memory Management Unit.
 //!
@@ -250,7 +250,7 @@ impl<const NUM_SPECIAL_RANGES: usize> KernelVirtualLayout<{ NUM_SPECIAL_RANGES }
         }
     }
 
-    #[cfg(test)]
+    /// public getter
     pub fn inner(&self) -> &[TranslationDescriptor; NUM_SPECIAL_RANGES] {
         &self.inner
     }
