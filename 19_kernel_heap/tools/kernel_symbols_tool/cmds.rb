@@ -9,8 +9,8 @@ def generate_symbols(kernel_elf, output_file)
         header = <<~HEREDOC
             use debug_symbol_types::Symbol;
 
-            # [no_mangle]
-            # [link_section = ".rodata.symbol_desc"]
+            # [unsafe(no_mangle)]
+            # [unsafe(link_section = ".rodata.symbol_desc")]
             static KERNEL_SYMBOLS: [Symbol; #{kernel_elf.num_symbols}] = [
         HEREDOC
 
