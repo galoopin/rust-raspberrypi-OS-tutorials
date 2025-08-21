@@ -6,11 +6,11 @@
 
 use crate::{
     memory::{
+        Physical, Virtual,
         mmu::{
             self as generic_mmu, AccessPermissions, AddressSpace, AssociatedTranslationTable,
             AttributeFields, MemAttributes, MemoryRegion, PageAddress, TranslationGranule,
         },
-        Physical, Virtual,
     },
     synchronization::InitStateLock,
 };
@@ -126,42 +126,44 @@ pub fn virt_mmio_remap_region() -> MemoryRegion<Virtual> {
 /// # Safety
 ///
 /// - Any miscalculation or attribute error will likely be fatal. Needs careful manual checking.
-pub unsafe fn kernel_map_binary() -> Result<(), &'static str> { unsafe {
-    generic_mmu::kernel_map_at(
-        "Kernel boot-core stack",
-        &virt_boot_core_stack_region(),
-        &kernel_virt_to_phys_region(virt_boot_core_stack_region()),
-        &AttributeFields {
-            mem_attributes: MemAttributes::CacheableDRAM,
-            acc_perms: AccessPermissions::ReadWrite,
-            execute_never: true,
-        },
-    )?;
+pub unsafe fn kernel_map_binary() -> Result<(), &'static str> {
+    unsafe {
+        generic_mmu::kernel_map_at(
+            "Kernel boot-core stack",
+            &virt_boot_core_stack_region(),
+            &kernel_virt_to_phys_region(virt_boot_core_stack_region()),
+            &AttributeFields {
+                mem_attributes: MemAttributes::CacheableDRAM,
+                acc_perms: AccessPermissions::ReadWrite,
+                execute_never: true,
+            },
+        )?;
 
-    generic_mmu::kernel_map_at(
-        "Kernel code and RO data",
-        &virt_code_region(),
-        &kernel_virt_to_phys_region(virt_code_region()),
-        &AttributeFields {
-            mem_attributes: MemAttributes::CacheableDRAM,
-            acc_perms: AccessPermissions::ReadOnly,
-            execute_never: false,
-        },
-    )?;
+        generic_mmu::kernel_map_at(
+            "Kernel code and RO data",
+            &virt_code_region(),
+            &kernel_virt_to_phys_region(virt_code_region()),
+            &AttributeFields {
+                mem_attributes: MemAttributes::CacheableDRAM,
+                acc_perms: AccessPermissions::ReadOnly,
+                execute_never: false,
+            },
+        )?;
 
-    generic_mmu::kernel_map_at(
-        "Kernel data and bss",
-        &virt_data_region(),
-        &kernel_virt_to_phys_region(virt_data_region()),
-        &AttributeFields {
-            mem_attributes: MemAttributes::CacheableDRAM,
-            acc_perms: AccessPermissions::ReadWrite,
-            execute_never: true,
-        },
-    )?;
+        generic_mmu::kernel_map_at(
+            "Kernel data and bss",
+            &virt_data_region(),
+            &kernel_virt_to_phys_region(virt_data_region()),
+            &AttributeFields {
+                mem_attributes: MemAttributes::CacheableDRAM,
+                acc_perms: AccessPermissions::ReadWrite,
+                execute_never: true,
+            },
+        )?;
 
-    Ok(())
-}}
+        Ok(())
+    }
+}
 
 //--------------------------------------------------------------------------------------------------
 // Testing

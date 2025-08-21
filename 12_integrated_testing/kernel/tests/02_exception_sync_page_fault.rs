@@ -31,7 +31,7 @@ fn kernel_init() -> ! {
     // This line will be printed as the test header.
     println!("Testing synchronous exception handling by causing a page fault");
 
-    if let Err(string) =  unsafe { memory::mmu::mmu().enable_mmu_and_caching() } {
+    if let Err(string) = unsafe { memory::mmu::mmu().enable_mmu_and_caching() } {
         info!("MMU: {}", string);
         cpu::qemu_exit_failure()
     }

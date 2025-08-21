@@ -245,13 +245,15 @@ impl PL011UartInner {
     /// # Safety
     ///
     /// - The user must ensure to provide a correct MMIO start address.
-    pub const unsafe fn new(mmio_start_addr: Address<Virtual>) -> Self { unsafe {
-        Self {
-            registers: Registers::new(mmio_start_addr),
-            chars_written: 0,
-            chars_read: 0,
+    pub const unsafe fn new(mmio_start_addr: Address<Virtual>) -> Self {
+        unsafe {
+            Self {
+                registers: Registers::new(mmio_start_addr),
+                chars_written: 0,
+                chars_read: 0,
+            }
         }
-    }}
+    }
 
     /// Set up baud rate and characteristics.
     ///
@@ -396,11 +398,13 @@ impl PL011Uart {
     /// # Safety
     ///
     /// - The user must ensure to provide a correct MMIO start address.
-    pub const unsafe fn new(mmio_start_addr: Address<Virtual>) -> Self { unsafe {
-        Self {
-            inner: IRQSafeNullLock::new(PL011UartInner::new(mmio_start_addr)),
+    pub const unsafe fn new(mmio_start_addr: Address<Virtual>) -> Self {
+        unsafe {
+            Self {
+                inner: IRQSafeNullLock::new(PL011UartInner::new(mmio_start_addr)),
+            }
         }
-    }}
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -425,7 +429,7 @@ impl driver::interface::DeviceDriver for PL011Uart {
         &'static self,
         irq_number: &Self::IRQNumberType,
     ) -> Result<(), &'static str> {
-        use exception::asynchronous::{irq_manager, IRQHandlerDescriptor};
+        use exception::asynchronous::{IRQHandlerDescriptor, irq_manager};
 
         let descriptor = IRQHandlerDescriptor::new(*irq_number, Self::COMPATIBLE, self);
 

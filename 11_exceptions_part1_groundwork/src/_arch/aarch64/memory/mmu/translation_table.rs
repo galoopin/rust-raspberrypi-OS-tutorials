@@ -16,8 +16,8 @@
 use crate::{
     bsp, memory,
     memory::mmu::{
-        arch_mmu::{Granule512MiB, Granule64KiB},
         AccessPermissions, AttributeFields, MemAttributes,
+        arch_mmu::{Granule64KiB, Granule512MiB},
     },
 };
 use core::convert;

@@ -16,7 +16,7 @@ mod arch_time;
 use crate::{
     driver, exception,
     exception::asynchronous::IRQNumber,
-    synchronization::{interface::Mutex, IRQSafeNullLock},
+    synchronization::{IRQSafeNullLock, interface::Mutex},
     warn,
 };
 use alloc::{boxed::Box, vec::Vec};
@@ -203,7 +203,7 @@ impl driver::interface::DeviceDriver for TimeManager {
         &'static self,
         irq_number: &Self::IRQNumberType,
     ) -> Result<(), &'static str> {
-        use exception::asynchronous::{irq_manager, IRQHandlerDescriptor};
+        use exception::asynchronous::{IRQHandlerDescriptor, irq_manager};
 
         let descriptor = IRQHandlerDescriptor::new(*irq_number, Self::COMPATIBLE, self);
 

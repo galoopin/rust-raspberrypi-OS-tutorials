@@ -79,13 +79,15 @@ unsafe fn prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr:
 pub unsafe extern "C" fn _start_rust(
     phys_kernel_tables_base_addr: u64,
     phys_boot_core_stack_end_exclusive_addr: u64,
-) -> ! { unsafe {
-    prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr);
+) -> ! {
+    unsafe {
+        prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr);
 
-    // Turn on the MMU for EL1.
-    let addr = Address::new(phys_kernel_tables_base_addr as usize);
-    memory::mmu::enable_mmu_and_caching(addr).unwrap();
+        // Turn on the MMU for EL1.
+        let addr = Address::new(phys_kernel_tables_base_addr as usize);
+        memory::mmu::enable_mmu_and_caching(addr).unwrap();
 
-    // Use `eret` to "return" to EL1. This results in execution of kernel_init() in EL1.
-    asm::eret()
-}}
+        // Use `eret` to "return" to EL1. This results in execution of kernel_init() in EL1.
+        asm::eret()
+    }
+}

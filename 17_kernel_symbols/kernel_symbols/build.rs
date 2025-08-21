@@ -1,7 +1,9 @@
 use std::{env, path::Path};
 
 fn main() {
-    if let Ok(path) = env::var("KERNEL_SYMBOLS_DEMANGLED_RS") && Path::new(&path).exists() {
+    if let Ok(path) = env::var("KERNEL_SYMBOLS_DEMANGLED_RS")
+        && Path::new(&path).exists()
+    {
         println!("cargo:rustc-cfg=feature=\"generated_symbols_available\"")
     }
 

@@ -81,13 +81,15 @@ impl PeripheralIC {
     /// # Safety
     ///
     /// - The user must ensure to provide a correct MMIO start address.
-    pub const unsafe fn new(mmio_start_addr: Address<Virtual>) -> Self { unsafe {
-        Self {
-            wo_registers: IRQSafeNullLock::new(WriteOnlyRegisters::new(mmio_start_addr)),
-            ro_registers: ReadOnlyRegisters::new(mmio_start_addr),
-            handler_table: InitStateLock::new(Vec::new()),
+    pub const unsafe fn new(mmio_start_addr: Address<Virtual>) -> Self {
+        unsafe {
+            Self {
+                wo_registers: IRQSafeNullLock::new(WriteOnlyRegisters::new(mmio_start_addr)),
+                ro_registers: ReadOnlyRegisters::new(mmio_start_addr),
+                handler_table: InitStateLock::new(Vec::new()),
+            }
         }
-    }}
+    }
 
     /// Called by the kernel to bring up the device.
     pub fn init(&self) {

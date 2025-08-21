@@ -120,7 +120,9 @@ pub fn backtrace(f: impl FnOnce(Option<&mut dyn Iterator<Item = BacktraceItem>>)
 /// - To be used only by testing code.
 pub unsafe fn corrupt_previous_frame_addr() {
     let sf = FP.get() as *mut usize;
-    unsafe { *sf = 0x123; }
+    unsafe {
+        *sf = 0x123;
+    }
 }
 
 #[cfg(feature = "test_build")]
@@ -132,5 +134,7 @@ pub unsafe fn corrupt_previous_frame_addr() {
 /// - To be used only by testing code.
 pub unsafe fn corrupt_link() {
     let sf = FP.get() as *mut StackFrameRecord;
-    unsafe { (*sf).link = Address::new(0x456); }
+    unsafe {
+        (*sf).link = Address::new(0x456);
+    }
 }

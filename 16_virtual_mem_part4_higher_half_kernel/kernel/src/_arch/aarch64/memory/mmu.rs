@@ -15,7 +15,7 @@
 
 use crate::{
     bsp, memory,
-    memory::{mmu::TranslationGranule, Address, Physical},
+    memory::{Address, Physical, mmu::TranslationGranule},
 };
 use aarch64_cpu::{asm::barrier, registers::*};
 use core::intrinsics::unlikely;

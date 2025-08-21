@@ -27,6 +27,6 @@ global_asm!(
 ///
 /// The function is called from the assembly `_start` function.
 #[unsafe(no_mangle)]
-pub unsafe fn _start_rust() -> ! { unsafe {
-    crate::kernel_init()
-}}
+pub unsafe fn _start_rust() -> ! {
+    unsafe { crate::kernel_init() }
+}

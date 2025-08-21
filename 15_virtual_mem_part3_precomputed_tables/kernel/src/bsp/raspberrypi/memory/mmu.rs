@@ -6,11 +6,11 @@
 
 use crate::{
     memory::{
+        Physical, Virtual,
         mmu::{
             self as generic_mmu, AddressSpace, AssociatedTranslationTable, AttributeFields,
             MemoryRegion, PageAddress, TranslationGranule,
         },
-        Physical, Virtual,
     },
     synchronization::InitStateLock,
 };

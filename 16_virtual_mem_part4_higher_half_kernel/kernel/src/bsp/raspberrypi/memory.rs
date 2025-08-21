@@ -66,7 +66,7 @@
 //! |                                       |
 pub mod mmu;
 
-use crate::memory::{mmu::PageAddress, Address, Physical, Virtual};
+use crate::memory::{Address, Physical, Virtual, mmu::PageAddress};
 use core::cell::UnsafeCell;
 
 //--------------------------------------------------------------------------------------------------

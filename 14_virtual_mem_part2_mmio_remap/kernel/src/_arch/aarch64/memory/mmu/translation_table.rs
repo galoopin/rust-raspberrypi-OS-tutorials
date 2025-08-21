@@ -16,12 +16,11 @@
 use crate::{
     bsp,
     memory::{
-        self,
+        self, Address, Physical, Virtual,
         mmu::{
-            arch_mmu::{Granule512MiB, Granule64KiB},
             AccessPermissions, AttributeFields, MemAttributes, MemoryRegion, PageAddress,
+            arch_mmu::{Granule64KiB, Granule512MiB},
         },
-        Address, Physical, Virtual,
     },
 };
 use core::convert;
@@ -322,7 +321,7 @@ impl<const NUM_TABLES: usize> Default for FixedSizeTranslationTable<NUM_TABLES> 
     fn default() -> Self {
         Self::new()
     }
- }
+}
 
 //------------------------------------------------------------------------------
 // OS Interface Code

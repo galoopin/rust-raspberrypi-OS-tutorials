@@ -192,13 +192,15 @@ impl PL011UartInner {
     /// # Safety
     ///
     /// - The user must ensure to provide a correct MMIO start address.
-    pub const unsafe fn new(mmio_start_addr: usize) -> Self { unsafe {
-        Self {
-            registers: Registers::new(mmio_start_addr),
-            chars_written: 0,
-            chars_read: 0,
+    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
+        unsafe {
+            Self {
+                registers: Registers::new(mmio_start_addr),
+                chars_written: 0,
+                chars_read: 0,
+            }
         }
-    }}
+    }
 
     /// Set up baud rate and characteristics.
     ///
@@ -335,11 +337,13 @@ impl PL011Uart {
     /// # Safety
     ///
     /// - The user must ensure to provide a correct MMIO start address.
-    pub const unsafe fn new(mmio_start_addr: usize) -> Self { unsafe {
-        Self {
-            inner: NullLock::new(PL011UartInner::new(mmio_start_addr)),
+    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
+        unsafe {
+            Self {
+                inner: NullLock::new(PL011UartInner::new(mmio_start_addr)),
+            }
         }
-    }}
+    }
 }
 
 //------------------------------------------------------------------------------

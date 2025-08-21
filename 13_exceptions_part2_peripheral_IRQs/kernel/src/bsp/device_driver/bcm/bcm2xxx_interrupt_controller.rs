@@ -91,11 +91,13 @@ impl InterruptController {
     /// # Safety
     ///
     /// - The user must ensure to provide a correct MMIO start address.
-    pub const unsafe fn new(periph_mmio_start_addr: usize) -> Self { unsafe {
-        Self {
-            periph: peripheral_ic::PeripheralIC::new(periph_mmio_start_addr),
+    pub const unsafe fn new(periph_mmio_start_addr: usize) -> Self {
+        unsafe {
+            Self {
+                periph: peripheral_ic::PeripheralIC::new(periph_mmio_start_addr),
+            }
         }
-    }}
+    }
 }
 
 //------------------------------------------------------------------------------
