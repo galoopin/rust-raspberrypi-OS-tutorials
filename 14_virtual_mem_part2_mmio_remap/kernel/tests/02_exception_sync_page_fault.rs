@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Copyright (c) 2019-2023 Andre Richter <andre.o.richter@gmail.com>
+// Copyright (c) 2019-2025 Andre Richter <andre.o.richter@gmail.com>
 
 //! Page faults must result in synchronous exceptions.
 
