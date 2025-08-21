@@ -25,9 +25,11 @@ fn nested_1() {
     libkernel::println!("{}", nested_2())
 }
 
-#[no_mangle]
-unsafe fn kernel_init() -> ! {
-    exception::handling_init();
+#[unsafe(no_mangle)]
+fn kernel_init() -> ! {
+    unsafe {
+        exception::handling_init();
+    }
     memory::init();
     bsp::driver::qemu_bring_up_console();
 
