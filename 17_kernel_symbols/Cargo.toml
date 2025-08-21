@@ -1,10 +1,6 @@
 [workspace]
-
-members = [
-        "libraries/*",
-        "kernel",
-        "kernel_symbols"
-]
+resolver = "3"
+members = ["libraries/*", "kernel", "kernel_symbols"]
 
 [profile.release]
 lto = true

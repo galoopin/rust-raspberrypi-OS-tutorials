@@ -43,8 +43,8 @@ pub type KernelVirtAddrSpace = AddressSpace<{ kernel_virt_addr_space_size() }>;
 ///
 /// That is, `size_of(InitStateLock<KernelTranslationTable>) == size_of(KernelTranslationTable)`.
 /// There is a unit tests that checks this porperty.
-#[link_section = ".data"]
-#[no_mangle]
+#[unsafe(link_section = ".data")]
+#[unsafe(no_mangle)]
 static KERNEL_TABLES: InitStateLock<KernelTranslationTable> =
     InitStateLock::new(KernelTranslationTable::new_for_precompute());
 
@@ -52,8 +52,8 @@ static KERNEL_TABLES: InitStateLock<KernelTranslationTable> =
 ///
 /// This will be patched to the correct value by the "translation table tool" after linking. This
 /// given value here is just a dummy.
-#[link_section = ".text._start_arguments"]
-#[no_mangle]
+#[unsafe(link_section = ".text._start_arguments")]
+#[unsafe(no_mangle)]
 static PHYS_KERNEL_TABLES_BASE_ADDR: u64 = 0xCCCCAAAAFFFFEEEE;
 
 //--------------------------------------------------------------------------------------------------

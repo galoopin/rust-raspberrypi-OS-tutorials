@@ -13,7 +13,7 @@ use debug_symbol_types::Symbol;
 //--------------------------------------------------------------------------------------------------
 
 // Symbol from the linker script.
-extern "Rust" {
+unsafe extern "Rust" {
     static __kernel_symbols_start: UnsafeCell<()>;
 }
 
@@ -23,7 +23,7 @@ extern "Rust" {
 
 /// This will be patched to the correct value by the "kernel symbols tool" after linking. This given
 /// value here is just a (safe) dummy.
-#[no_mangle]
+#[unsafe(no_mangle)]
 static NUM_KERNEL_SYMBOLS: u64 = 0;
 
 //--------------------------------------------------------------------------------------------------
