@@ -64,7 +64,7 @@ class ChainbootTest < BootTest
 
     # override
     def finish
-        super()
+        super
         @test_output.map! { |x| x.gsub(/.*\r/, '  ') }
     end
 end

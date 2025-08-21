@@ -14,7 +14,7 @@ class BitField
         define_method("#{name}=") do |bits|
             mask = (2**num_bits) - 1
 
-            raise "Input out of range: #{name} = 0x#{bits.to_s(16)}" if (bits & ~mask).positive?
+            raise "Input out of range: #{name} = 0x#{bits.to_s(16)}" if bits.anybits?(~mask)
 
             # Clear bitfield
             @value &= ~(mask << offset)

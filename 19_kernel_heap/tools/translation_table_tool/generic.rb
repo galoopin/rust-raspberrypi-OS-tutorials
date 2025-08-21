@@ -24,7 +24,7 @@ class Integer
     def aligned?(alignment)
         raise unless alignment.power_of_two?
 
-        (self & (alignment - 1)).zero?
+        nobits?(alignment - 1)
     end
 
     def align_up(alignment)

@@ -8,7 +8,7 @@
 require 'date'
 
 files = `git ls-files`.split("\n")
-files = files.delete_if { |f| File.symlink?(f) }
+files.delete_if { |f| File.symlink?(f) }
 files = files.join(' ')
 
 year = Date.today.year
