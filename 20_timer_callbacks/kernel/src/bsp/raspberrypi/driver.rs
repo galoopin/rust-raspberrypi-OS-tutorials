@@ -36,7 +36,7 @@ static mut INTERRUPT_CONTROLLER: MaybeUninit<device_driver::GICv2> = MaybeUninit
 //--------------------------------------------------------------------------------------------------
 
 /// This must be called only after successful init of the memory subsystem.
-unsafe fn instantiate_uart() -> Result<(), &'static str> {
+unsafe fn instantiate_uart() -> Result<(), &'static str> { unsafe {
     let mmio_descriptor = MMIODescriptor::new(mmio::PL011_UART_START, mmio::PL011_UART_SIZE);
     let virt_addr =
         memory::mmu::kernel_map_mmio(device_driver::PL011Uart::COMPATIBLE, &mmio_descriptor)?;
@@ -47,20 +47,20 @@ unsafe fn instantiate_uart() -> Result<(), &'static str> {
     uart.write(device_driver::PL011Uart::new(virt_addr));
 
     Ok(())
-}
+}}
 
 /// This must be called only after successful init of the UART driver.
-unsafe fn post_init_uart() -> Result<(), &'static str> {
+unsafe fn post_init_uart() -> Result<(), &'static str> { unsafe {
     let raw_ptr = &raw mut PL011_UART;
     let uart = &mut *raw_ptr;
 
     console::register_console(uart.assume_init_ref());
 
     Ok(())
-}
+}}
 
 /// This must be called only after successful init of the memory subsystem.
-unsafe fn instantiate_gpio() -> Result<(), &'static str> {
+unsafe fn instantiate_gpio() -> Result<(), &'static str> { unsafe {
     let mmio_descriptor = MMIODescriptor::new(mmio::GPIO_START, mmio::GPIO_SIZE);
     let virt_addr =
         memory::mmu::kernel_map_mmio(device_driver::GPIO::COMPATIBLE, &mmio_descriptor)?;
@@ -71,21 +71,21 @@ unsafe fn instantiate_gpio() -> Result<(), &'static str> {
     gpio.write(device_driver::GPIO::new(virt_addr));
 
     Ok(())
-}
+}}
 
 /// This must be called only after successful init of the GPIO driver.
-unsafe fn post_init_gpio() -> Result<(), &'static str> {
+unsafe fn post_init_gpio() -> Result<(), &'static str> { unsafe {
     let raw_ptr = &raw mut GPIO;
     let gpio = &mut *raw_ptr;
 
     gpio.assume_init_ref().map_pl011_uart();
 
     Ok(())
-}
+}}
 
 /// This must be called only after successful init of the memory subsystem.
 #[cfg(feature = "bsp_rpi3")]
-unsafe fn instantiate_interrupt_controller() -> Result<(), &'static str> {
+unsafe fn instantiate_interrupt_controller() -> Result<(), &'static str> { unsafe {
     let local_mmio_descriptor = MMIODescriptor::new(mmio::LOCAL_IC_START, mmio::LOCAL_IC_SIZE);
     let local_virt_addr = memory::mmu::kernel_map_mmio(
         device_driver::InterruptController::COMPATIBLE,
@@ -108,7 +108,7 @@ unsafe fn instantiate_interrupt_controller() -> Result<(), &'static str> {
     ));
 
     Ok(())
-}
+}}
 
 /// This must be called only after successful init of the memory subsystem.
 #[cfg(feature = "bsp_rpi4")]
@@ -128,17 +128,17 @@ unsafe fn instantiate_interrupt_controller() -> Result<(), &'static str> {
 }
 
 /// This must be called only after successful init of the interrupt controller driver.
-unsafe fn post_init_interrupt_controller() -> Result<(), &'static str> {
+unsafe fn post_init_interrupt_controller() -> Result<(), &'static str> { unsafe {
     let raw_ptr = &raw mut INTERRUPT_CONTROLLER;
     let interrupt_ctrl = &mut *raw_ptr;
 
     generic_exception::asynchronous::register_irq_manager(interrupt_ctrl.assume_init_ref());
 
     Ok(())
-}
+}}
 
 /// Function needs to ensure that driver registration happens only after correct instantiation.
-unsafe fn driver_uart() -> Result<(), &'static str> {
+unsafe fn driver_uart() -> Result<(), &'static str> { unsafe {
     instantiate_uart()?;
 
     let raw_ptr = &raw mut PL011_UART;
@@ -152,10 +152,10 @@ unsafe fn driver_uart() -> Result<(), &'static str> {
     generic_driver::driver_manager().register_driver(uart_descriptor);
 
     Ok(())
-}
+}}
 
 /// Function needs to ensure that driver registration happens only after correct instantiation.
-unsafe fn driver_gpio() -> Result<(), &'static str> {
+unsafe fn driver_gpio() -> Result<(), &'static str> { unsafe {
     instantiate_gpio()?;
 
     let raw_ptr = &raw mut GPIO;
@@ -169,10 +169,10 @@ unsafe fn driver_gpio() -> Result<(), &'static str> {
     generic_driver::driver_manager().register_driver(gpio_descriptor);
 
     Ok(())
-}
+}}
 
 /// Function needs to ensure that driver registration happens only after correct instantiation.
-unsafe fn driver_interrupt_controller() -> Result<(), &'static str> {
+unsafe fn driver_interrupt_controller() -> Result<(), &'static str> { unsafe {
     instantiate_interrupt_controller()?;
 
     let raw_ptr = &raw mut INTERRUPT_CONTROLLER;
@@ -186,7 +186,7 @@ unsafe fn driver_interrupt_controller() -> Result<(), &'static str> {
     generic_driver::driver_manager().register_driver(interrupt_controller_descriptor);
 
     Ok(())
-}
+}}
 
 //--------------------------------------------------------------------------------------------------
 // Public Code
@@ -197,7 +197,7 @@ unsafe fn driver_interrupt_controller() -> Result<(), &'static str> {
 /// # Safety
 ///
 /// See child function calls.
-pub unsafe fn init() -> Result<(), &'static str> {
+pub unsafe fn init() -> Result<(), &'static str> { unsafe {
     static INIT_DONE: AtomicBool = AtomicBool::new(false);
     if INIT_DONE.load(Ordering::Relaxed) {
         return Err("Init already done");
@@ -209,7 +209,7 @@ pub unsafe fn init() -> Result<(), &'static str> {
 
     INIT_DONE.store(true, Ordering::Relaxed);
     Ok(())
-}
+}}
 
 /// Minimal code needed to bring up the console in QEMU (for testing only). This is often less steps
 /// than on real hardware due to QEMU's abstractions.

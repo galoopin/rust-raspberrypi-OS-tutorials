@@ -25,8 +25,8 @@ use libkernel::{bsp, cpu, driver, exception, info, memory, state, time};
 ///
 /// - Only a single core must be active and running this function.
 /// - Printing will not work until the respective driver's MMIO is remapped.
-#[no_mangle]
-unsafe fn kernel_init() -> ! {
+#[unsafe(no_mangle)]
+unsafe fn kernel_init() -> ! { unsafe {
     exception::handling_init();
     memory::init();
 
@@ -53,7 +53,7 @@ unsafe fn kernel_init() -> ! {
 
     // Transition from unsafe to safe.
     kernel_main()
-}
+}}
 
 /// The main function running after the early init.
 fn kernel_main() -> ! {

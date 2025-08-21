@@ -126,13 +126,13 @@ unsafe impl GlobalAlloc for HeapAllocator {
         }
     }
 
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) { unsafe {
         KERNEL_HEAP_ALLOCATOR
             .inner
             .lock(|inner| inner.deallocate(core::ptr::NonNull::new_unchecked(ptr), layout));
 
         debug_print_alloc_dealloc("Free", ptr, layout);
-    }
+    }}
 }
 
 /// Query the BSP for the heap region and initialize the kernel's heap allocator with it.

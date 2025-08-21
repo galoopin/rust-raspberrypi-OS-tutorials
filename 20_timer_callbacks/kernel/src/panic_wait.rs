@@ -15,7 +15,7 @@ use core::panic::PanicInfo;
 ///
 /// It is linked weakly, so that the integration tests can overload its standard behavior.
 #[linkage = "weak"]
-#[no_mangle]
+#[unsafe(no_mangle)]
 fn _panic_exit() -> ! {
     #[cfg(not(feature = "test_build"))]
     {
