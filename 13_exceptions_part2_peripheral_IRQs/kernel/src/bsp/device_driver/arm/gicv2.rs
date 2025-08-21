@@ -127,8 +127,8 @@ impl GICv2 {
     /// - The user must ensure to provide a correct MMIO start address.
     pub const unsafe fn new(gicd_mmio_start_addr: usize, gicc_mmio_start_addr: usize) -> Self {
         Self {
-            gicd: gicd::GICD::new(gicd_mmio_start_addr),
-            gicc: gicc::GICC::new(gicc_mmio_start_addr),
+            gicd: unsafe { gicd::GICD::new(gicd_mmio_start_addr) },
+            gicc: unsafe { gicc::GICC::new(gicc_mmio_start_addr) },
             handler_table: InitStateLock::new([None; IRQNumber::MAX_INCLUSIVE + 1]),
         }
     }

@@ -132,8 +132,10 @@ impl GICD {
     /// - The user must ensure to provide a correct MMIO start address.
     pub const unsafe fn new(mmio_start_addr: Address<Virtual>) -> Self {
         Self {
-            shared_registers: IRQSafeNullLock::new(SharedRegisters::new(mmio_start_addr)),
-            banked_registers: BankedRegisters::new(mmio_start_addr),
+            shared_registers: IRQSafeNullLock::new(unsafe {
+                SharedRegisters::new(mmio_start_addr)
+            }),
+            banked_registers: unsafe { BankedRegisters::new(mmio_start_addr) },
         }
     }
 
