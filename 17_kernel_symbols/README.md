@@ -232,16 +232,14 @@ $ TEST=02_exception_sync_page_fault make test_integration
 diff -uNr 16_virtual_mem_part4_higher_half_kernel/Cargo.toml 17_kernel_symbols/Cargo.toml
 --- 16_virtual_mem_part4_higher_half_kernel/Cargo.toml
 +++ 17_kernel_symbols/Cargo.toml
-@@ -2,7 +2,8 @@
-
- members = [
-         "libraries/*",
--        "kernel"
-+        "kernel",
-+        "kernel_symbols"
- ]
+@@ -1,6 +1,6 @@
+ [workspace]
+ resolver = "3"
+-members = ["libraries/*", "kernel"]
++members = ["libraries/*", "kernel", "kernel_symbols"]
 
  [profile.release]
+ lto = true
 
 diff -uNr 16_virtual_mem_part4_higher_half_kernel/kernel/Cargo.toml 17_kernel_symbols/kernel/Cargo.toml
 --- 16_virtual_mem_part4_higher_half_kernel/kernel/Cargo.toml
@@ -252,16 +250,24 @@ diff -uNr 16_virtual_mem_part4_higher_half_kernel/kernel/Cargo.toml 17_kernel_sy
 -version = "0.16.0"
 +version = "0.17.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
-@@ -16,6 +16,7 @@
+@@ -12,7 +12,6 @@
+
+ [lints.rust]
+ dead_code = "allow"
+-incomplete_include = "allow"
+ internal_features = "allow"
+ unused_imports = "allow"
+
+@@ -22,6 +21,7 @@
 
  [dependencies]
  test-types = { path = "../libraries/test-types" }
 +debug-symbol-types = { path = "../libraries/debug-symbol-types" }
 
  # Optional dependencies
- tock-registers = { version = "0.8.x", default-features = false, features = ["register_types"], optional = true }
+ tock-registers = { version = "0.8.x", default-features = false, features = [
 
 diff -uNr 16_virtual_mem_part4_higher_half_kernel/kernel/src/_arch/aarch64/exception.rs 17_kernel_symbols/kernel/src/_arch/aarch64/exception.rs
 --- 16_virtual_mem_part4_higher_half_kernel/kernel/src/_arch/aarch64/exception.rs
@@ -308,6 +314,13 @@ diff -uNr 16_virtual_mem_part4_higher_half_kernel/kernel/src/bsp/raspberrypi/ker
      . = ALIGN(PAGE_SIZE);
      __code_end_exclusive = .;
 
+diff -uNr 16_virtual_mem_part4_higher_half_kernel/kernel/src/bsp/raspberrypi/kernel_virt_addr_space_size.ld 17_kernel_symbols/kernel/src/bsp/raspberrypi/kernel_virt_addr_space_size.ld
+--- 16_virtual_mem_part4_higher_half_kernel/kernel/src/bsp/raspberrypi/kernel_virt_addr_space_size.ld
++++ 17_kernel_symbols/kernel/src/bsp/raspberrypi/kernel_virt_addr_space_size.ld
+@@ -1 +1 @@
+-__kernel_virt_addr_space_size = 1024 * 1024 * 1024;
++__kernel_virt_addr_space_size = 1024 * 1024 * 1024
+
 diff -uNr 16_virtual_mem_part4_higher_half_kernel/kernel/src/bsp/raspberrypi/memory.rs 17_kernel_symbols/kernel/src/bsp/raspberrypi/memory.rs
 --- 16_virtual_mem_part4_higher_half_kernel/kernel/src/bsp/raspberrypi/memory.rs
 +++ 17_kernel_symbols/kernel/src/bsp/raspberrypi/memory.rs
@@ -331,7 +344,7 @@ diff -uNr 16_virtual_mem_part4_higher_half_kernel/kernel/src/bsp/raspberrypi/mem
 diff -uNr 16_virtual_mem_part4_higher_half_kernel/kernel/src/lib.rs 17_kernel_symbols/kernel/src/lib.rs
 --- 16_virtual_mem_part4_higher_half_kernel/kernel/src/lib.rs
 +++ 17_kernel_symbols/kernel/src/lib.rs
-@@ -142,6 +142,7 @@
+@@ -136,6 +136,7 @@
  pub mod memory;
  pub mod print;
  pub mod state;
@@ -359,7 +372,7 @@ diff -uNr 16_virtual_mem_part4_higher_half_kernel/kernel/src/symbols.rs 17_kerne
 +//--------------------------------------------------------------------------------------------------
 +
 +// Symbol from the linker script.
-+extern "Rust" {
++unsafe extern "Rust" {
 +    static __kernel_symbols_start: UnsafeCell<()>;
 +}
 +
@@ -369,7 +382,7 @@ diff -uNr 16_virtual_mem_part4_higher_half_kernel/kernel/src/symbols.rs 17_kerne
 +
 +/// This will be patched to the correct value by the "kernel symbols tool" after linking. This given
 +/// value here is just a (safe) dummy.
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +static NUM_KERNEL_SYMBOLS: u64 = 0;
 +
 +//--------------------------------------------------------------------------------------------------
@@ -440,10 +453,10 @@ diff -uNr 16_virtual_mem_part4_higher_half_kernel/kernel_symbols/build.rs 17_ker
 +use std::{env, path::Path};
 +
 +fn main() {
-+    if let Ok(path) = env::var("KERNEL_SYMBOLS_DEMANGLED_RS") {
-+        if Path::new(&path).exists() {
-+            println!("cargo:rustc-cfg=feature=\"generated_symbols_available\"")
-+        }
++    if let Ok(path) = env::var("KERNEL_SYMBOLS_DEMANGLED_RS")
++        && Path::new(&path).exists()
++    {
++        println!("cargo:rustc-cfg=feature=\"generated_symbols_available\"")
 +    }
 +
 +    println!(
@@ -459,7 +472,7 @@ diff -uNr 16_virtual_mem_part4_higher_half_kernel/kernel_symbols/Cargo.toml 17_k
 +[package]
 +name = "kernel_symbols"
 +version = "0.1.0"
-+edition = "2021"
++edition = "2024"
 +
 +[features]
 +default = []
@@ -478,7 +491,7 @@ diff -uNr 16_virtual_mem_part4_higher_half_kernel/kernel_symbols/kernel_symbols.
 @@ -0,0 +1,15 @@
 +/* SPDX-License-Identifier: MIT OR Apache-2.0
 + *
-+ * Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
++ * Copyright (c) 2022 Andre Richter <andre.o.richter@gmail.com>
 + */
 +
 +SECTIONS
@@ -642,7 +655,7 @@ diff -uNr 16_virtual_mem_part4_higher_half_kernel/libraries/debug-symbol-types/C
 +[package]
 +name = "debug-symbol-types"
 +version = "0.1.0"
-+edition = "2021"
++edition = "2024"
 
 diff -uNr 16_virtual_mem_part4_higher_half_kernel/libraries/debug-symbol-types/src/lib.rs 17_kernel_symbols/libraries/debug-symbol-types/src/lib.rs
 --- 16_virtual_mem_part4_higher_half_kernel/libraries/debug-symbol-types/src/lib.rs
@@ -790,8 +803,8 @@ diff -uNr 16_virtual_mem_part4_higher_half_kernel/tools/kernel_symbols_tool/cmds
 +        header = <<~HEREDOC
 +            use debug_symbol_types::Symbol;
 +
-+            # [no_mangle]
-+            # [link_section = ".rodata.symbol_desc"]
++            # [unsafe(no_mangle)]
++            # [unsafe(link_section = ".rodata.symbol_desc")]
 +            static KERNEL_SYMBOLS: [Symbol; #{kernel_elf.num_symbols}] = [
 +        HEREDOC
 +

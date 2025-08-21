@@ -47,8 +47,18 @@ diff -uNr 02_runtime_init/Cargo.toml 03_hacky_hello_world/Cargo.toml
 -version = "0.2.0"
 +version = "0.3.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
+@@ -16,9 +16,6 @@
+ name = "kernel"
+ path = "src/main.rs"
+
+-[lints.rust]
+-unused_imports = "allow"
+-
+ ##--------------------------------------------------------------------------------------------------
+ ## Dependencies
+ ##--------------------------------------------------------------------------------------------------
 
 diff -uNr 02_runtime_init/Makefile 03_hacky_hello_world/Makefile
 --- 02_runtime_init/Makefile
@@ -226,12 +236,11 @@ diff -uNr 02_runtime_init/src/console.rs 03_hacky_hello_world/src/console.rs
 diff -uNr 02_runtime_init/src/main.rs 03_hacky_hello_world/src/main.rs
 --- 02_runtime_init/src/main.rs
 +++ 03_hacky_hello_world/src/main.rs
-@@ -107,12 +107,16 @@
+@@ -106,12 +106,15 @@
+ //!     - It is implemented in `src/_arch/__arch_name__/cpu/boot.s`.
  //! 2. Once finished with architectural setup, the arch code calls `kernel_init()`.
 
- #![feature(asm_const)]
 +#![feature(format_args_nl)]
-+#![feature(panic_info_message)]
  #![no_main]
  #![no_std]
 
@@ -243,7 +252,7 @@ diff -uNr 02_runtime_init/src/main.rs 03_hacky_hello_world/src/main.rs
 
  /// Early init code.
  ///
-@@ -120,5 +124,7 @@
+@@ -119,5 +122,7 @@
  ///
  /// - Only a single core must be active and running this function.
  unsafe fn kernel_init() -> ! {
@@ -315,7 +324,7 @@ diff -uNr 02_runtime_init/src/panic_wait.rs 03_hacky_hello_world/src/panic_wait.
 +        location,
 +        line,
 +        column,
-+        info.message().unwrap_or(&format_args!("")),
++        info.message(),
 +    );
 +
      cpu::wait_forever()

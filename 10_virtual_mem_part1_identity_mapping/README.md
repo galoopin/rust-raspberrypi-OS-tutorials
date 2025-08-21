@@ -358,8 +358,16 @@ diff -uNr 09_privilege_level/Cargo.toml 10_virtual_mem_part1_identity_mapping/Ca
 -version = "0.9.0"
 +version = "0.10.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
+@@ -18,6 +18,7 @@
+
+ [lints.rust]
+ dead_code = "allow"
++internal_features = "allow"
+
+ ##--------------------------------------------------------------------------------------------------
+ ## Dependencies
 
 diff -uNr 09_privilege_level/src/_arch/aarch64/memory/mmu/translation_table.rs 10_virtual_mem_part1_identity_mapping/src/_arch/aarch64/memory/mmu/translation_table.rs
 --- 09_privilege_level/src/_arch/aarch64/memory/mmu/translation_table.rs
@@ -383,8 +391,8 @@ diff -uNr 09_privilege_level/src/_arch/aarch64/memory/mmu/translation_table.rs 1
 +use crate::{
 +    bsp, memory,
 +    memory::mmu::{
-+        arch_mmu::{Granule512MiB, Granule64KiB},
 +        AccessPermissions, AttributeFields, MemAttributes,
++        arch_mmu::{Granule64KiB, Granule512MiB},
 +    },
 +};
 +use core::convert;
@@ -661,7 +669,7 @@ diff -uNr 09_privilege_level/src/_arch/aarch64/memory/mmu/translation_table.rs 1
 diff -uNr 09_privilege_level/src/_arch/aarch64/memory/mmu.rs 10_virtual_mem_part1_identity_mapping/src/_arch/aarch64/memory/mmu.rs
 --- 09_privilege_level/src/_arch/aarch64/memory/mmu.rs
 +++ 10_virtual_mem_part1_identity_mapping/src/_arch/aarch64/memory/mmu.rs
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,173 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
 +// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
@@ -679,7 +687,7 @@ diff -uNr 09_privilege_level/src/_arch/aarch64/memory/mmu.rs 10_virtual_mem_part
 +
 +use crate::{
 +    bsp, memory,
-+    memory::mmu::{translation_table::KernelTranslationTable, TranslationGranule},
++    memory::mmu::{TranslationGranule, translation_table::KernelTranslationTable},
 +};
 +use aarch64_cpu::{asm::barrier, registers::*};
 +use core::intrinsics::unlikely;
@@ -727,7 +735,7 @@ diff -uNr 09_privilege_level/src/_arch/aarch64/memory/mmu.rs 10_virtual_mem_part
 +    /// Checks for architectural restrictions.
 +    pub const fn arch_address_space_size_sanity_checks() {
 +        // Size must be at least one full 512 MiB table.
-+        assert!((AS_SIZE modulo Granule512MiB::SIZE) == 0);
++        assert!(AS_SIZE.is_multiple_of(Granule512MiB::SIZE));
 +
 +        // Check for 48 bit virtual address size as maximum, which is supported by any ARMv8
 +        // version.
@@ -784,42 +792,50 @@ diff -uNr 09_privilege_level/src/_arch/aarch64/memory/mmu.rs 10_virtual_mem_part
 +
 +impl memory::mmu::interface::MMU for MemoryManagementUnit {
 +    unsafe fn enable_mmu_and_caching(&self) -> Result<(), MMUEnableError> {
-+        if unlikely(self.is_enabled()) {
-+            return Err(MMUEnableError::AlreadyEnabled);
++        unsafe {
++            if unlikely(self.is_enabled()) {
++                return Err(MMUEnableError::AlreadyEnabled);
++            }
++
++            // Fail early if translation granule is not supported.
++            if unlikely(!ID_AA64MMFR0_EL1.matches_all(ID_AA64MMFR0_EL1::TGran64::Supported)) {
++                return Err(MMUEnableError::Other(
++                    "Translation granule not supported in HW",
++                ));
++            }
++
++            // Prepare the memory attribute indirection register.
++            self.set_up_mair();
++
++            // create a raw pointer
++            let raw_ptr = &raw mut KERNEL_TABLES;
++            // Dereference the raw pointer to get a reference
++            let kernel_tables = &mut *raw_ptr;
++
++            // Populate translation tables.
++            kernel_tables
++                .populate_tt_entries()
++                .map_err(MMUEnableError::Other)?;
++
++            // Set the "Translation Table Base Register"
++            TTBR0_EL1.set_baddr(kernel_tables.phys_base_address());
++
++            self.configure_translation_control();
++
++            // Switch the MMU on.
++            //
++            // First, force all previous changes to be seen before the MMU is enabled.
++            barrier::isb(barrier::SY);
++
++            // Enable the MMU and turn on data and instruction caching.
++            SCTLR_EL1
++                .modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
++
++            // Force MMU init to complete before next instruction.
++            barrier::isb(barrier::SY);
++
++            Ok(())
 +        }
-+
-+        // Fail early if translation granule is not supported.
-+        if unlikely(!ID_AA64MMFR0_EL1.matches_all(ID_AA64MMFR0_EL1::TGran64::Supported)) {
-+            return Err(MMUEnableError::Other(
-+                "Translation granule not supported in HW",
-+            ));
-+        }
-+
-+        // Prepare the memory attribute indirection register.
-+        self.set_up_mair();
-+
-+        // Populate translation tables.
-+        KERNEL_TABLES
-+            .populate_tt_entries()
-+            .map_err(MMUEnableError::Other)?;
-+
-+        // Set the "Translation Table Base Register".
-+        TTBR0_EL1.set_baddr(KERNEL_TABLES.phys_base_address());
-+
-+        self.configure_translation_control();
-+
-+        // Switch the MMU on.
-+        //
-+        // First, force all previous changes to be seen before the MMU is enabled.
-+        barrier::isb(barrier::SY);
-+
-+        // Enable the MMU and turn on data and instruction caching.
-+        SCTLR_EL1.modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
-+
-+        // Force MMU init to complete before next instruction.
-+        barrier::isb(barrier::SY);
-+
-+        Ok(())
 +    }
 +
 +    #[inline(always)]
@@ -998,7 +1014,7 @@ diff -uNr 09_privilege_level/src/bsp/raspberrypi/memory.rs 10_virtual_mem_part1_
 +//--------------------------------------------------------------------------------------------------
 +
 +// Symbols from the linker script.
-+extern "Rust" {
++unsafe extern "Rust" {
 +    static __code_start: UnsafeCell<()>;
 +    static __code_end_exclusive: UnsafeCell<()>;
 +}
@@ -1108,20 +1124,16 @@ diff -uNr 09_privilege_level/src/common.rs 10_virtual_mem_part1_identity_mapping
 diff -uNr 09_privilege_level/src/main.rs 10_virtual_mem_part1_identity_mapping/src/main.rs
 --- 09_privilege_level/src/main.rs
 +++ 10_virtual_mem_part1_identity_mapping/src/main.rs
-@@ -107,9 +107,12 @@
+@@ -107,16 +107,21 @@
  //! 2. Once finished with architectural setup, the arch code calls `kernel_init()`.
 
  #![allow(clippy::upper_case_acronyms)]
 +#![allow(incomplete_features)]
- #![feature(asm_const)]
- #![feature(const_option)]
 +#![feature(core_intrinsics)]
  #![feature(format_args_nl)]
 +#![feature(int_roundings)]
- #![feature(nonzero_min_max)]
- #![feature(panic_info_message)]
  #![feature(trait_alias)]
-@@ -118,10 +121,12 @@
+ #![no_main]
  #![no_std]
 
  mod bsp;
@@ -1134,7 +1146,7 @@ diff -uNr 09_privilege_level/src/main.rs 10_virtual_mem_part1_identity_mapping/s
  mod panic_wait;
  mod print;
  mod synchronization;
-@@ -132,8 +137,17 @@
+@@ -127,9 +132,18 @@
  /// # Safety
  ///
  /// - Only a single core must be active and running this function.
@@ -1144,16 +1156,17 @@ diff -uNr 09_privilege_level/src/main.rs 10_virtual_mem_part1_identity_mapping/s
 +///       e.g. the yet-to-be-introduced spinlocks in the device drivers (which currently employ
 +///       NullLocks instead of spinlocks), will fail to work (properly) on the RPi SoCs.
  unsafe fn kernel_init() -> ! {
-+    use memory::mmu::interface::MMU;
+     unsafe {
++        use memory::mmu::interface::MMU;
 +
-+    if let Err(string) = memory::mmu::mmu().enable_mmu_and_caching() {
-+        panic!("MMU: {}", string);
-+    }
++        if let Err(string) = memory::mmu::mmu().enable_mmu_and_caching() {
++            panic!("MMU: {}", string);
++        }
 +
-     // Initialize the BSP driver subsystem.
-     if let Err(x) = bsp::driver::init() {
-         panic!("Error initializing BSP driver subsystem: {}", x);
-@@ -149,7 +163,7 @@
+         // Initialize the BSP driver subsystem.
+         if let Err(x) = bsp::driver::init() {
+             panic!("Error initializing BSP driver subsystem: {}", x);
+@@ -146,7 +160,7 @@
 
  /// The main function running after the early init.
  fn kernel_main() -> ! {
@@ -1162,7 +1175,7 @@ diff -uNr 09_privilege_level/src/main.rs 10_virtual_mem_part1_identity_mapping/s
      use core::time::Duration;
 
      info!(
-@@ -159,6 +173,9 @@
+@@ -156,6 +170,9 @@
      );
      info!("Booting on: {}", bsp::board_name());
 
@@ -1172,7 +1185,7 @@ diff -uNr 09_privilege_level/src/main.rs 10_virtual_mem_part1_identity_mapping/s
      let (_, privilege_level) = exception::current_privilege_level();
      info!("Current privilege level: {}", privilege_level);
 
-@@ -176,6 +193,13 @@
+@@ -173,6 +190,13 @@
      info!("Timer test, spinning for 1 second");
      time::time_manager().spin_for(Duration::from_secs(1));
 

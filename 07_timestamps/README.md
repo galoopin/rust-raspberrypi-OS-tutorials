@@ -55,10 +55,10 @@ diff -uNr 06_uart_chainloader/Cargo.toml 07_timestamps/Cargo.toml
 -version = "0.6.0"
 +version = "0.7.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
-Binary files 06_uart_chainloader/demo_payload_rpi3.img and 07_timestamps/demo_payload_rpi3.img differ
-Binary files 06_uart_chainloader/demo_payload_rpi4.img and 07_timestamps/demo_payload_rpi4.img differ
+Les fichiers binaires 06_uart_chainloader/demo_payload_rpi3.img et 07_timestamps/demo_payload_rpi3.img sont différents
+Les fichiers binaires 06_uart_chainloader/demo_payload_rpi4.img et 07_timestamps/demo_payload_rpi4.img sont différents
 
 diff -uNr 06_uart_chainloader/Makefile 07_timestamps/Makefile
 --- 06_uart_chainloader/Makefile
@@ -274,7 +274,7 @@ diff -uNr 06_uart_chainloader/src/_arch/aarch64/time.rs 07_timestamps/src/_arch/
 +use crate::warn;
 +use aarch64_cpu::{asm::barrier, registers::*};
 +use core::{
-+    num::{NonZeroU128, NonZeroU32, NonZeroU64},
++    num::{NonZeroU32, NonZeroU64, NonZeroU128},
 +    ops::{Add, Div},
 +    time::Duration,
 +};
@@ -295,7 +295,7 @@ diff -uNr 06_uart_chainloader/src/_arch/aarch64/time.rs 07_timestamps/src/_arch/
 +
 +/// Boot assembly code overwrites this value with the value of CNTFRQ_EL0 before any Rust code is
 +/// executed. This given value here is just a (safe) dummy.
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +static ARCH_TIMER_COUNTER_FREQUENCY: NonZeroU32 = NonZeroU32::MIN;
 +
 +//--------------------------------------------------------------------------------------------------
@@ -424,7 +424,7 @@ diff -uNr 06_uart_chainloader/src/_arch/aarch64/time.rs 07_timestamps/src/_arch/
 diff -uNr 06_uart_chainloader/src/bsp/device_driver/bcm/bcm2xxx_gpio.rs 07_timestamps/src/bsp/device_driver/bcm/bcm2xxx_gpio.rs
 --- 06_uart_chainloader/src/bsp/device_driver/bcm/bcm2xxx_gpio.rs
 +++ 07_timestamps/src/bsp/device_driver/bcm/bcm2xxx_gpio.rs
-@@ -140,25 +140,19 @@
+@@ -142,25 +142,19 @@
      /// Disable pull-up/down on pins 14 and 15.
      #[cfg(feature = "bsp_rpi3")]
      fn disable_pud_14_15_bcm2837(&mut self) {
@@ -460,7 +460,7 @@ diff -uNr 06_uart_chainloader/src/bsp/device_driver/bcm/bcm2xxx_gpio.rs 07_times
 diff -uNr 06_uart_chainloader/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs 07_timestamps/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs
 --- 06_uart_chainloader/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs
 +++ 07_timestamps/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs
-@@ -275,7 +275,7 @@
+@@ -277,7 +277,7 @@
      }
 
      /// Retrieve a character.
@@ -469,7 +469,7 @@ diff -uNr 06_uart_chainloader/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs 07
          // If RX FIFO is empty,
          if self.registers.FR.matches_all(FR::RXFE::SET) {
              // immediately return in non-blocking mode.
-@@ -290,7 +290,12 @@
+@@ -292,7 +292,12 @@
          }
 
          // Read one character.
@@ -483,7 +483,7 @@ diff -uNr 06_uart_chainloader/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs 07
 
          // Update statistics.
          self.chars_read += 1;
-@@ -376,14 +381,14 @@
+@@ -380,14 +385,14 @@
  impl console::interface::Read for PL011Uart {
      fn read_char(&self) -> char {
          self.inner
@@ -609,17 +609,17 @@ diff -uNr 06_uart_chainloader/src/driver.rs 07_timestamps/src/driver.rs
 
  //! Driver support.
 
--use crate::synchronization::{interface::Mutex, NullLock};
+-use crate::synchronization::{NullLock, interface::Mutex};
 +use crate::{
 +    info,
-+    synchronization::{interface::Mutex, NullLock},
++    synchronization::{NullLock, interface::Mutex},
 +};
 
  //--------------------------------------------------------------------------------------------------
  // Private Definitions
-@@ -151,4 +154,14 @@
-             }
-         });
+@@ -153,4 +156,14 @@
+             });
+         }
      }
 +
 +    /// Enumerate all registered device drivers.
@@ -636,20 +636,7 @@ diff -uNr 06_uart_chainloader/src/driver.rs 07_timestamps/src/driver.rs
 diff -uNr 06_uart_chainloader/src/main.rs 07_timestamps/src/main.rs
 --- 06_uart_chainloader/src/main.rs
 +++ 07_timestamps/src/main.rs
-@@ -108,9 +108,12 @@
-
- #![allow(clippy::upper_case_acronyms)]
- #![feature(asm_const)]
-+#![feature(const_option)]
- #![feature(format_args_nl)]
-+#![feature(nonzero_min_max)]
- #![feature(panic_info_message)]
- #![feature(trait_alias)]
-+#![feature(unchecked_math)]
- #![no_main]
- #![no_std]
-
-@@ -121,6 +124,7 @@
+@@ -119,6 +119,7 @@
  mod panic_wait;
  mod print;
  mod synchronization;
@@ -657,8 +644,8 @@ diff -uNr 06_uart_chainloader/src/main.rs 07_timestamps/src/main.rs
 
  /// Early init code.
  ///
-@@ -142,55 +146,30 @@
-     kernel_main()
+@@ -142,55 +143,30 @@
+     }
  }
 
 -const MINILOAD_LOGO: &str = r#"
@@ -671,7 +658,8 @@ diff -uNr 06_uart_chainloader/src/main.rs 07_timestamps/src/main.rs
  /// The main function running after the early init.
  fn kernel_main() -> ! {
 -    use console::console;
--
++    use core::time::Duration;
+
 -    println!("{}", MINILOAD_LOGO);
 -    println!("{:^37}", bsp::board_name());
 -    println!();
@@ -684,25 +672,6 @@ diff -uNr 06_uart_chainloader/src/main.rs 07_timestamps/src/main.rs
 -    // Notify `Minipush` to send the binary.
 -    for _ in 0..3 {
 -        console().write_char(3 as char);
--    }
-+    use core::time::Duration;
-
--    // Read the binary's size.
--    let mut size: u32 = u32::from(console().read_char() as u8);
--    size |= u32::from(console().read_char() as u8) << 8;
--    size |= u32::from(console().read_char() as u8) << 16;
--    size |= u32::from(console().read_char() as u8) << 24;
--
--    // Trust it's not too big.
--    console().write_char('O');
--    console().write_char('K');
--
--    let kernel_addr: *mut u8 = bsp::memory::board_default_load_addr() as *mut u8;
--    unsafe {
--        // Read the kernel byte by byte.
--        for i in 0..size {
--            core::ptr::write_volatile(kernel_addr.offset(i as isize), console().read_char() as u8)
--        }
 +    info!(
 +        "{} version {}",
 +        env!("CARGO_PKG_NAME"),
@@ -725,6 +694,24 @@ diff -uNr 06_uart_chainloader/src/main.rs 07_timestamps/src/main.rs
 +        info!("Spinning for 1 second");
 +        time::time_manager().spin_for(Duration::from_secs(1));
      }
+-
+-    // Read the binary's size.
+-    let mut size: u32 = u32::from(console().read_char() as u8);
+-    size |= u32::from(console().read_char() as u8) << 8;
+-    size |= u32::from(console().read_char() as u8) << 16;
+-    size |= u32::from(console().read_char() as u8) << 24;
+-
+-    // Trust it's not too big.
+-    console().write_char('O');
+-    console().write_char('K');
+-
+-    let kernel_addr: *mut u8 = bsp::memory::board_default_load_addr() as *mut u8;
+-    unsafe {
+-        // Read the kernel byte by byte.
+-        for i in 0..size {
+-            core::ptr::write_volatile(kernel_addr.offset(i as isize), console().read_char() as u8)
+-        }
+-    }
 -
 -    println!("[ML] Loaded! Executing the payload now\n");
 -    console().flush();
@@ -771,7 +758,7 @@ diff -uNr 06_uart_chainloader/src/print.rs 07_timestamps/src/print.rs
 +/// Prints an info, with a newline.
 +#[macro_export]
 +macro_rules! info {
-+    ($string:expr) => ({
++    ($string:expr_2021) => ({
 +        let timestamp = $crate::time::time_manager().uptime();
 +
 +        $crate::print::_print(format_args_nl!(
@@ -780,7 +767,7 @@ diff -uNr 06_uart_chainloader/src/print.rs 07_timestamps/src/print.rs
 +            timestamp.subsec_micros(),
 +        ));
 +    });
-+    ($format_string:expr, $($arg:tt)*) => ({
++    ($format_string:expr_2021, $($arg:tt)*) => ({
 +        let timestamp = $crate::time::time_manager().uptime();
 +
 +        $crate::print::_print(format_args_nl!(
@@ -795,7 +782,7 @@ diff -uNr 06_uart_chainloader/src/print.rs 07_timestamps/src/print.rs
 +/// Prints a warning, with a newline.
 +#[macro_export]
 +macro_rules! warn {
-+    ($string:expr) => ({
++    ($string:expr_2021) => ({
 +        let timestamp = $crate::time::time_manager().uptime();
 +
 +        $crate::print::_print(format_args_nl!(
@@ -804,7 +791,7 @@ diff -uNr 06_uart_chainloader/src/print.rs 07_timestamps/src/print.rs
 +            timestamp.subsec_micros(),
 +        ));
 +    });
-+    ($format_string:expr, $($arg:tt)*) => ({
++    ($format_string:expr_2021, $($arg:tt)*) => ({
 +        let timestamp = $crate::time::time_manager().uptime();
 +
 +        $crate::print::_print(format_args_nl!(
@@ -956,14 +943,14 @@ diff -uNr 06_uart_chainloader/tests/chainboot_test.rb 07_timestamps/tests/chainb
 -
 -    # override
 -    def finish
--        super()
+-        super
 -        @test_output.map! { |x| x.gsub(/.*\r/, '  ') }
 -    end
 -end
 -
--##--------------------------------------------------------------------------------------------------
+-## -------------------------------------------------------------------------------------------------
 -## Execution starts here
--##--------------------------------------------------------------------------------------------------
+-## -------------------------------------------------------------------------------------------------
 -payload_path = ARGV.pop
 -qemu_cmd = ARGV.join(' ')
 -

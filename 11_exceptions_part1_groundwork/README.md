@@ -497,7 +497,7 @@ diff -uNr 10_virtual_mem_part1_identity_mapping/Cargo.toml 11_exceptions_part1_g
 -version = "0.10.0"
 +version = "0.11.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
 
 diff -uNr 10_virtual_mem_part1_identity_mapping/src/_arch/aarch64/exception.rs 11_exceptions_part1_groundwork/src/_arch/aarch64/exception.rs
@@ -564,17 +564,17 @@ diff -uNr 10_virtual_mem_part1_identity_mapping/src/_arch/aarch64/exception.rs 1
 +// Current, EL0
 +//------------------------------------------------------------------------------
 +
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +extern "C" fn current_el0_synchronous(_e: &mut ExceptionContext) {
 +    panic!("Should not be here. Use of SP_EL0 in EL1 is not supported.")
 +}
 +
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +extern "C" fn current_el0_irq(_e: &mut ExceptionContext) {
 +    panic!("Should not be here. Use of SP_EL0 in EL1 is not supported.")
 +}
 +
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +extern "C" fn current_el0_serror(_e: &mut ExceptionContext) {
 +    panic!("Should not be here. Use of SP_EL0 in EL1 is not supported.")
 +}
@@ -583,7 +583,7 @@ diff -uNr 10_virtual_mem_part1_identity_mapping/src/_arch/aarch64/exception.rs 1
 +// Current, ELx
 +//------------------------------------------------------------------------------
 +
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +extern "C" fn current_elx_synchronous(e: &mut ExceptionContext) {
 +    if e.fault_address_valid() {
 +        let far_el1 = FAR_EL1.get();
@@ -600,12 +600,12 @@ diff -uNr 10_virtual_mem_part1_identity_mapping/src/_arch/aarch64/exception.rs 1
 +    default_exception_handler(e);
 +}
 +
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +extern "C" fn current_elx_irq(e: &mut ExceptionContext) {
 +    default_exception_handler(e);
 +}
 +
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +extern "C" fn current_elx_serror(e: &mut ExceptionContext) {
 +    default_exception_handler(e);
 +}
@@ -614,17 +614,17 @@ diff -uNr 10_virtual_mem_part1_identity_mapping/src/_arch/aarch64/exception.rs 1
 +// Lower, AArch64
 +//------------------------------------------------------------------------------
 +
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +extern "C" fn lower_aarch64_synchronous(e: &mut ExceptionContext) {
 +    default_exception_handler(e);
 +}
 +
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +extern "C" fn lower_aarch64_irq(e: &mut ExceptionContext) {
 +    default_exception_handler(e);
 +}
 +
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +extern "C" fn lower_aarch64_serror(e: &mut ExceptionContext) {
 +    default_exception_handler(e);
 +}
@@ -633,17 +633,17 @@ diff -uNr 10_virtual_mem_part1_identity_mapping/src/_arch/aarch64/exception.rs 1
 +// Lower, AArch32
 +//------------------------------------------------------------------------------
 +
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +extern "C" fn lower_aarch32_synchronous(e: &mut ExceptionContext) {
 +    default_exception_handler(e);
 +}
 +
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +extern "C" fn lower_aarch32_irq(e: &mut ExceptionContext) {
 +    default_exception_handler(e);
 +}
 +
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +extern "C" fn lower_aarch32_serror(e: &mut ExceptionContext) {
 +    default_exception_handler(e);
 +}
@@ -769,7 +769,7 @@ diff -uNr 10_virtual_mem_part1_identity_mapping/src/_arch/aarch64/exception.rs 1
 
  //--------------------------------------------------------------------------------------------------
  // Public Code
-@@ -29,3 +284,23 @@
+@@ -29,3 +284,25 @@
          _ => (PrivilegeLevel::Unknown, "Unknown"),
      }
  }
@@ -783,15 +783,17 @@ diff -uNr 10_virtual_mem_part1_identity_mapping/src/_arch/aarch64/exception.rs 1
 +///   adhere to the alignment and size constraints demanded by the ARMv8-A Architecture Reference
 +///   Manual.
 +pub unsafe fn handling_init() {
-+    // Provided by exception.S.
-+    extern "Rust" {
-+        static __exception_vector_start: UnsafeCell<()>;
++    unsafe {
++        // Provided by exception.S.
++        unsafe extern "Rust" {
++            static __exception_vector_start: UnsafeCell<()>;
++        }
++
++        VBAR_EL1.set(__exception_vector_start.get() as u64);
++
++        // Force VBAR update to complete before next instruction.
++        barrier::isb(barrier::SY);
 +    }
-+
-+    VBAR_EL1.set(__exception_vector_start.get() as u64);
-+
-+    // Force VBAR update to complete before next instruction.
-+    barrier::isb(barrier::SY);
 +}
 
 diff -uNr 10_virtual_mem_part1_identity_mapping/src/_arch/aarch64/exception.s 11_exceptions_part1_groundwork/src/_arch/aarch64/exception.s
@@ -1024,16 +1026,16 @@ diff -uNr 10_virtual_mem_part1_identity_mapping/src/exception.rs 11_exceptions_p
 diff -uNr 10_virtual_mem_part1_identity_mapping/src/main.rs 11_exceptions_part1_groundwork/src/main.rs
 --- 10_virtual_mem_part1_identity_mapping/src/main.rs
 +++ 11_exceptions_part1_groundwork/src/main.rs
-@@ -144,6 +144,8 @@
- unsafe fn kernel_init() -> ! {
-     use memory::mmu::interface::MMU;
+@@ -140,6 +140,8 @@
+     unsafe {
+         use memory::mmu::interface::MMU;
 
-+    exception::handling_init();
++        exception::handling_init();
 +
-     if let Err(string) = memory::mmu::mmu().enable_mmu_and_caching() {
-         panic!("MMU: {}", string);
-     }
-@@ -163,7 +165,7 @@
+         if let Err(string) = memory::mmu::mmu().enable_mmu_and_caching() {
+             panic!("MMU: {}", string);
+         }
+@@ -160,7 +162,7 @@
 
  /// The main function running after the early init.
  fn kernel_main() -> ! {
@@ -1042,7 +1044,7 @@ diff -uNr 10_virtual_mem_part1_identity_mapping/src/main.rs 11_exceptions_part1_
      use core::time::Duration;
 
      info!(
-@@ -193,13 +195,28 @@
+@@ -190,13 +192,28 @@
      info!("Timer test, spinning for 1 second");
      time::time_manager().spin_for(Duration::from_secs(1));
 

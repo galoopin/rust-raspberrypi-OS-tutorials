@@ -360,7 +360,7 @@ $ TEST=02_exception_sync_page_fault make test_integration
 diff -uNr 17_kernel_symbols/Cargo.toml 18_backtrace/Cargo.toml
 --- 17_kernel_symbols/Cargo.toml
 +++ 18_backtrace/Cargo.toml
-@@ -8,3 +8,4 @@
+@@ -4,3 +4,4 @@
 
  [profile.release]
  lto = true
@@ -375,9 +375,17 @@ diff -uNr 17_kernel_symbols/kernel/Cargo.toml 18_backtrace/kernel/Cargo.toml
 -version = "0.17.0"
 +version = "0.18.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
-@@ -56,3 +56,15 @@
+@@ -12,6 +12,7 @@
+
+ [lints.rust]
+ dead_code = "allow"
++incomplete_include = "allow"
+ internal_features = "allow"
+ unused_imports = "allow"
+
+@@ -63,3 +64,15 @@
  [[test]]
  name = "03_exception_restore_sanity"
  harness = false
@@ -397,7 +405,7 @@ diff -uNr 17_kernel_symbols/kernel/Cargo.toml 18_backtrace/kernel/Cargo.toml
 diff -uNr 17_kernel_symbols/kernel/src/_arch/aarch64/backtrace.rs 18_backtrace/kernel/src/_arch/aarch64/backtrace.rs
 --- 17_kernel_symbols/kernel/src/_arch/aarch64/backtrace.rs
 +++ 18_backtrace/kernel/src/_arch/aarch64/backtrace.rs
-@@ -0,0 +1,136 @@
+@@ -0,0 +1,140 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
 +// Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
@@ -520,7 +528,9 @@ diff -uNr 17_kernel_symbols/kernel/src/_arch/aarch64/backtrace.rs 18_backtrace/k
 +/// - To be used only by testing code.
 +pub unsafe fn corrupt_previous_frame_addr() {
 +    let sf = FP.get() as *mut usize;
-+    *sf = 0x123;
++    unsafe {
++        *sf = 0x123;
++    }
 +}
 +
 +#[cfg(feature = "test_build")]
@@ -532,7 +542,9 @@ diff -uNr 17_kernel_symbols/kernel/src/_arch/aarch64/backtrace.rs 18_backtrace/k
 +/// - To be used only by testing code.
 +pub unsafe fn corrupt_link() {
 +    let sf = FP.get() as *mut StackFrameRecord;
-+    (*sf).link = Address::new(0x456);
++    unsafe {
++        (*sf).link = Address::new(0x456);
++    }
 +}
 
 diff -uNr 17_kernel_symbols/kernel/src/_arch/aarch64/cpu/boot.rs 18_backtrace/kernel/src/_arch/aarch64/cpu/boot.rs
@@ -545,7 +557,7 @@ diff -uNr 17_kernel_symbols/kernel/src/_arch/aarch64/cpu/boot.rs 18_backtrace/ke
 -use core::arch::global_asm;
 +use core::{
 +    arch::global_asm,
-+    sync::atomic::{compiler_fence, Ordering},
++    sync::atomic::{Ordering, compiler_fence},
 +};
  use tock_registers::interfaces::Writeable;
 
@@ -569,16 +581,16 @@ diff -uNr 17_kernel_symbols/kernel/src/_arch/aarch64/cpu/boot.rs 18_backtrace/ke
  //--------------------------------------------------------------------------------------------------
  // Public Code
  //--------------------------------------------------------------------------------------------------
-@@ -93,6 +108,9 @@
-     let addr = Address::new(phys_kernel_tables_base_addr as usize);
-     memory::mmu::enable_mmu_and_caching(addr).unwrap();
+@@ -94,6 +109,9 @@
+         let addr = Address::new(phys_kernel_tables_base_addr as usize);
+         memory::mmu::enable_mmu_and_caching(addr).unwrap();
 
-+    // Make the function we return to the root of a backtrace.
-+    prepare_backtrace_reset();
++        // Make the function we return to the root of a backtrace.
++        prepare_backtrace_reset();
 +
-     // Use `eret` to "return" to EL1. Since virtual memory will already be enabled, this results in
-     // execution of kernel_init() in EL1 from its _virtual address_.
-     asm::eret()
+         // Use `eret` to "return" to EL1. Since virtual memory will already be enabled, this results
+         // in execution of kernel_init() in EL1 from its _virtual address_.
+         asm::eret()
 
 diff -uNr 17_kernel_symbols/kernel/src/_arch/aarch64/exception.rs 18_backtrace/kernel/src/_arch/aarch64/exception.rs
 --- 17_kernel_symbols/kernel/src/_arch/aarch64/exception.rs
@@ -909,7 +921,7 @@ diff -uNr 17_kernel_symbols/kernel/src/bsp/raspberrypi/memory/mmu.rs 18_backtrac
 diff -uNr 17_kernel_symbols/kernel/src/lib.rs 18_backtrace/kernel/src/lib.rs
 --- 17_kernel_symbols/kernel/src/lib.rs
 +++ 18_backtrace/kernel/src/lib.rs
-@@ -133,6 +133,7 @@
+@@ -127,6 +127,7 @@
  mod panic_wait;
  mod synchronization;
 
@@ -983,7 +995,7 @@ diff -uNr 17_kernel_symbols/kernel/src/panic_wait.rs 18_backtrace/kernel/src/pan
 @@ -80,6 +81,7 @@
          line,
          column,
-         info.message().unwrap_or(&format_args!("")),
+         info.message(),
 +        backtrace::Backtrace
      );
 
@@ -1039,9 +1051,9 @@ diff -uNr 17_kernel_symbols/kernel/tests/05_backtrace_sanity.rb 18_backtrace/ker
 +    end
 +end
 +
-+##--------------------------------------------------------------------------------------------------
++## -------------------------------------------------------------------------------------------------
 +## Test registration
-+##--------------------------------------------------------------------------------------------------
++## -------------------------------------------------------------------------------------------------
 +def subtest_collection
 +    [PanicBacktraceTest.new, BacktraceCorrectnessTest.new]
 +end
@@ -1049,7 +1061,7 @@ diff -uNr 17_kernel_symbols/kernel/tests/05_backtrace_sanity.rb 18_backtrace/ker
 diff -uNr 17_kernel_symbols/kernel/tests/05_backtrace_sanity.rs 18_backtrace/kernel/tests/05_backtrace_sanity.rs
 --- 17_kernel_symbols/kernel/tests/05_backtrace_sanity.rs
 +++ 18_backtrace/kernel/tests/05_backtrace_sanity.rs
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,33 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
 +// Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
@@ -1070,9 +1082,11 @@ diff -uNr 17_kernel_symbols/kernel/tests/05_backtrace_sanity.rs 18_backtrace/ker
 +    panic!()
 +}
 +
-+#[no_mangle]
-+unsafe fn kernel_init() -> ! {
-+    exception::handling_init();
++#[unsafe(no_mangle)]
++fn kernel_init() -> ! {
++    unsafe {
++        exception::handling_init();
++    }
 +    memory::init();
 +    bsp::driver::qemu_bring_up_console();
 +
@@ -1106,9 +1120,9 @@ diff -uNr 17_kernel_symbols/kernel/tests/06_backtrace_invalid_frame.rb 18_backtr
 +    end
 +end
 +
-+##--------------------------------------------------------------------------------------------------
++## -------------------------------------------------------------------------------------------------
 +## Test registration
-+##--------------------------------------------------------------------------------------------------
++## -------------------------------------------------------------------------------------------------
 +def subtest_collection
 +    [InvalidFramePointerTest.new]
 +end
@@ -1116,7 +1130,7 @@ diff -uNr 17_kernel_symbols/kernel/tests/06_backtrace_invalid_frame.rb 18_backtr
 diff -uNr 17_kernel_symbols/kernel/tests/06_backtrace_invalid_frame.rs 18_backtrace/kernel/tests/06_backtrace_invalid_frame.rs
 --- 17_kernel_symbols/kernel/tests/06_backtrace_invalid_frame.rs
 +++ 18_backtrace/kernel/tests/06_backtrace_invalid_frame.rs
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,35 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
 +// Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
@@ -1139,9 +1153,11 @@ diff -uNr 17_kernel_symbols/kernel/tests/06_backtrace_invalid_frame.rs 18_backtr
 +    panic!()
 +}
 +
-+#[no_mangle]
-+unsafe fn kernel_init() -> ! {
-+    exception::handling_init();
++#[unsafe(no_mangle)]
++fn kernel_init() -> ! {
++    unsafe {
++        exception::handling_init();
++    }
 +    memory::init();
 +    bsp::driver::qemu_bring_up_console();
 +
@@ -1174,9 +1190,9 @@ diff -uNr 17_kernel_symbols/kernel/tests/07_backtrace_invalid_link.rb 18_backtra
 +    end
 +end
 +
-+##--------------------------------------------------------------------------------------------------
++## -------------------------------------------------------------------------------------------------
 +## Test registration
-+##--------------------------------------------------------------------------------------------------
++## -------------------------------------------------------------------------------------------------
 +def subtest_collection
 +    [InvalidLinkTest.new]
 +end
@@ -1184,7 +1200,7 @@ diff -uNr 17_kernel_symbols/kernel/tests/07_backtrace_invalid_link.rb 18_backtra
 diff -uNr 17_kernel_symbols/kernel/tests/07_backtrace_invalid_link.rs 18_backtrace/kernel/tests/07_backtrace_invalid_link.rs
 --- 17_kernel_symbols/kernel/tests/07_backtrace_invalid_link.rs
 +++ 18_backtrace/kernel/tests/07_backtrace_invalid_link.rs
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,40 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
 +// Copyright (c) 2022-2025 Andre Richter <andre.o.richter@gmail.com>
@@ -1212,9 +1228,11 @@ diff -uNr 17_kernel_symbols/kernel/tests/07_backtrace_invalid_link.rs 18_backtra
 +    libkernel::println!("{}", nested_2())
 +}
 +
-+#[no_mangle]
-+unsafe fn kernel_init() -> ! {
-+    exception::handling_init();
++#[unsafe(no_mangle)]
++fn kernel_init() -> ! {
++    unsafe {
++        exception::handling_init();
++    }
 +    memory::init();
 +    bsp::driver::qemu_bring_up_console();
 +

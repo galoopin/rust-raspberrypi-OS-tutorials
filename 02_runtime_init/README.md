@@ -38,9 +38,9 @@ diff -uNr 01_wait_forever/Cargo.toml 02_runtime_init/Cargo.toml
 -version = "0.1.0"
 +version = "0.2.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
-@@ -21,3 +21,7 @@
+@@ -24,3 +24,7 @@
  ##--------------------------------------------------------------------------------------------------
 
  [dependencies]
@@ -58,6 +58,7 @@ diff -uNr 01_wait_forever/Makefile 02_runtime_init/Makefile
                  --section .text   \
 +                --section .rodata \
                  $(KERNEL_ELF) | rustfilt
+
  ##------------------------------------------------------------------------------
 
 diff -uNr 01_wait_forever/src/_arch/aarch64/cpu/boot.rs 02_runtime_init/src/_arch/aarch64/cpu/boot.rs
@@ -80,9 +81,9 @@ diff -uNr 01_wait_forever/src/_arch/aarch64/cpu/boot.rs 02_runtime_init/src/_arc
 +/// The Rust entry of the `kernel` binary.
 +///
 +/// The function is called from the assembly `_start` function.
-+#[no_mangle]
++#[unsafe(no_mangle)]
 +pub unsafe fn _start_rust() -> ! {
-+    crate::kernel_init()
++    unsafe { crate::kernel_init() }
 +}
 
 diff -uNr 01_wait_forever/src/_arch/aarch64/cpu/boot.s 02_runtime_init/src/_arch/aarch64/cpu/boot.s
@@ -193,8 +194,8 @@ diff -uNr 01_wait_forever/src/bsp/raspberrypi/cpu.rs 02_runtime_init/src/bsp/ras
 +//--------------------------------------------------------------------------------------------------
 +
 +/// Used by `arch` code to find the early boot core.
-+#[no_mangle]
-+#[link_section = ".text._start_arguments"]
++#[unsafe(no_mangle)]
++#[unsafe(link_section = ".text._start_arguments")]
 +pub static BOOT_CORE_ID: u64 = 0;
 
 diff -uNr 01_wait_forever/src/bsp/raspberrypi/kernel.ld 02_runtime_init/src/bsp/raspberrypi/kernel.ld
@@ -310,17 +311,15 @@ diff -uNr 01_wait_forever/src/cpu.rs 02_runtime_init/src/cpu.rs
 diff -uNr 01_wait_forever/src/main.rs 02_runtime_init/src/main.rs
 --- 01_wait_forever/src/main.rs
 +++ 02_runtime_init/src/main.rs
-@@ -104,7 +104,9 @@
+@@ -104,6 +104,7 @@
  //!
  //! 1. The kernel's entry point is the function `cpu::boot::arch_boot::_start()`.
  //!     - It is implemented in `src/_arch/__arch_name__/cpu/boot.s`.
 +//! 2. Once finished with architectural setup, the arch code calls `kernel_init()`.
 
-+#![feature(asm_const)]
  #![no_main]
  #![no_std]
-
-@@ -112,4 +114,11 @@
+@@ -112,4 +113,11 @@
  mod cpu;
  mod panic_wait;
 

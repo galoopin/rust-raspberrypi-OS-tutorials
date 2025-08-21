@@ -159,9 +159,9 @@ diff -uNr 04_safe_globals/Cargo.toml 05_drivers_gpio_uart/Cargo.toml
 -version = "0.4.0"
 +version = "0.5.0"
  authors = ["Andre Richter <andre.o.richter@gmail.com>"]
- edition = "2021"
+ edition = "2024"
 
-@@ -9,8 +9,8 @@
+@@ -9,19 +9,27 @@
 
  [features]
  default = []
@@ -172,12 +172,21 @@ diff -uNr 04_safe_globals/Cargo.toml 05_drivers_gpio_uart/Cargo.toml
 
  [[bin]]
  name = "kernel"
-@@ -22,6 +22,9 @@
+ path = "src/main.rs"
+
++[lints.rust]
++dead_code = "allow"
++
+ ##--------------------------------------------------------------------------------------------------
+ ## Dependencies
+ ##--------------------------------------------------------------------------------------------------
 
  [dependencies]
 
 +# Optional dependencies
-+tock-registers = { version = "0.8.x", default-features = false, features = ["register_types"], optional = true }
++tock-registers = { version = "0.8.x", default-features = false, features = [
++    "register_types",
++], optional = true }
 +
  # Platform specific dependencies
  [target.'cfg(target_arch = "aarch64")'.dependencies]
@@ -232,6 +241,15 @@ diff -uNr 04_safe_globals/Makefile 05_drivers_gpio_uart/Makefile
 
  all: $(KERNEL_BIN)
 
+@@ -138,7 +150,7 @@
+
+ ##------------------------------------------------------------------------------
+ ## Generate the documentation
+-##------------------------------------------------------------------------------
++##-----------------------------------------------------------------------------
+ doc:
+ 	$(call color_header, "Generating docs")
+ 	@$(DOC_CMD) --document-private-items --open
 @@ -156,9 +168,16 @@
  qemu: $(KERNEL_BIN)
  	$(call color_header, "Launching QEMU")
@@ -275,7 +293,7 @@ diff -uNr 04_safe_globals/src/_arch/aarch64/cpu.rs 05_drivers_gpio_uart/src/_arc
 diff -uNr 04_safe_globals/src/bsp/device_driver/bcm/bcm2xxx_gpio.rs 05_drivers_gpio_uart/src/bsp/device_driver/bcm/bcm2xxx_gpio.rs
 --- 04_safe_globals/src/bsp/device_driver/bcm/bcm2xxx_gpio.rs
 +++ 05_drivers_gpio_uart/src/bsp/device_driver/bcm/bcm2xxx_gpio.rs
-@@ -0,0 +1,228 @@
+@@ -0,0 +1,232 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
 +// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
@@ -410,8 +428,10 @@ diff -uNr 04_safe_globals/src/bsp/device_driver/bcm/bcm2xxx_gpio.rs 05_drivers_g
 +    ///
 +    /// - The user must ensure to provide a correct MMIO start address.
 +    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
-+        Self {
-+            registers: Registers::new(mmio_start_addr),
++        unsafe {
++            Self {
++                registers: Registers::new(mmio_start_addr),
++            }
 +        }
 +    }
 +
@@ -483,8 +503,10 @@ diff -uNr 04_safe_globals/src/bsp/device_driver/bcm/bcm2xxx_gpio.rs 05_drivers_g
 +    ///
 +    /// - The user must ensure to provide a correct MMIO start address.
 +    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
-+        Self {
-+            inner: NullLock::new(GPIOInner::new(mmio_start_addr)),
++        unsafe {
++            Self {
++                inner: NullLock::new(GPIOInner::new(mmio_start_addr)),
++            }
 +        }
 +    }
 +
@@ -508,7 +530,7 @@ diff -uNr 04_safe_globals/src/bsp/device_driver/bcm/bcm2xxx_gpio.rs 05_drivers_g
 diff -uNr 04_safe_globals/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs 05_drivers_gpio_uart/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs
 --- 04_safe_globals/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs
 +++ 05_drivers_gpio_uart/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs
-@@ -0,0 +1,407 @@
+@@ -0,0 +1,411 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
 +// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
@@ -704,10 +726,12 @@ diff -uNr 04_safe_globals/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs 05_dri
 +    ///
 +    /// - The user must ensure to provide a correct MMIO start address.
 +    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
-+        Self {
-+            registers: Registers::new(mmio_start_addr),
-+            chars_written: 0,
-+            chars_read: 0,
++        unsafe {
++            Self {
++                registers: Registers::new(mmio_start_addr),
++                chars_written: 0,
++                chars_read: 0,
++            }
 +        }
 +    }
 +
@@ -847,8 +871,10 @@ diff -uNr 04_safe_globals/src/bsp/device_driver/bcm/bcm2xxx_pl011_uart.rs 05_dri
 +    ///
 +    /// - The user must ensure to provide a correct MMIO start address.
 +    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
-+        Self {
-+            inner: NullLock::new(PL011UartInner::new(mmio_start_addr)),
++        unsafe {
++            Self {
++                inner: NullLock::new(PL011UartInner::new(mmio_start_addr)),
++            }
 +        }
 +    }
 +}
@@ -1419,7 +1445,7 @@ diff -uNr 04_safe_globals/src/cpu.rs 05_drivers_gpio_uart/src/cpu.rs
 diff -uNr 04_safe_globals/src/driver.rs 05_drivers_gpio_uart/src/driver.rs
 --- 04_safe_globals/src/driver.rs
 +++ 05_drivers_gpio_uart/src/driver.rs
-@@ -0,0 +1,167 @@
+@@ -0,0 +1,169 @@
 +// SPDX-License-Identifier: MIT OR Apache-2.0
 +//
 +// Copyright (c) 2018-2025 Andre Richter <andre.o.richter@gmail.com>
@@ -1428,7 +1454,7 @@ diff -uNr 04_safe_globals/src/driver.rs 05_drivers_gpio_uart/src/driver.rs
 +
 +use crate::{
 +    println,
-+    synchronization::{interface::Mutex, NullLock},
++    synchronization::{NullLock, interface::Mutex},
 +};
 +
 +//--------------------------------------------------------------------------------------------------
@@ -1554,27 +1580,29 @@ diff -uNr 04_safe_globals/src/driver.rs 05_drivers_gpio_uart/src/driver.rs
 +    ///
 +    /// - During init, drivers might do stuff with system-wide impact.
 +    pub unsafe fn init_drivers(&self) {
-+        self.for_each_descriptor(|descriptor| {
-+            // 1. Initialize driver.
-+            if let Err(x) = descriptor.device_driver.init() {
-+                panic!(
-+                    "Error initializing driver: {}: {}",
-+                    descriptor.device_driver.compatible(),
-+                    x
-+                );
-+            }
++        unsafe {
++            self.for_each_descriptor(|descriptor| {
++                // 1. Initialize driver.
++                if let Err(x) = descriptor.device_driver.init() {
++                    panic!(
++                        "Error initializing driver: {}: {}",
++                        descriptor.device_driver.compatible(),
++                        x
++                    );
++                }
 +
-+            // 2. Call corresponding post init callback.
-+            if let Some(callback) = &descriptor.post_init_callback {
-+                if let Err(x) = callback() {
++                // 2. Call corresponding post init callback.
++                if let Some(callback) = &descriptor.post_init_callback
++                    && let Err(x) = callback()
++                {
 +                    panic!(
 +                        "Error during driver post-init callback: {}: {}",
 +                        descriptor.device_driver.compatible(),
 +                        x
 +                    );
 +                }
-+            }
-+        });
++            });
++        }
 +    }
 +
 +    /// Enumerate all registered device drivers.
@@ -1596,10 +1624,10 @@ diff -uNr 04_safe_globals/src/main.rs 05_drivers_gpio_uart/src/main.rs
  //! 2. Once finished with architectural setup, the arch code calls `kernel_init()`.
 
 +#![allow(clippy::upper_case_acronyms)]
- #![feature(asm_const)]
  #![feature(format_args_nl)]
- #![feature(panic_info_message)]
-@@ -116,6 +117,7 @@
+ #![feature(trait_alias)]
+ #![no_main]
+@@ -114,6 +115,7 @@
  mod bsp;
  mod console;
  mod cpu;
@@ -1607,25 +1635,28 @@ diff -uNr 04_safe_globals/src/main.rs 05_drivers_gpio_uart/src/main.rs
  mod panic_wait;
  mod print;
  mod synchronization;
-@@ -125,13 +127,42 @@
+@@ -123,13 +125,44 @@
  /// # Safety
  ///
  /// - Only a single core must be active and running this function.
 +/// - The init calls in this function must appear in the correct order.
  unsafe fn kernel_init() -> ! {
 -    use console::console;
-+    // Initialize the BSP driver subsystem.
-+    if let Err(x) = bsp::driver::init() {
-+        panic!("Error initializing BSP driver subsystem: {}", x);
-+    }
-+
-+    // Initialize all device drivers.
-+    driver::driver_manager().init_drivers();
-+    // println! is usable from here on.
-
+-
 -    println!("[0] Hello from Rust!");
-+    // Transition from unsafe to safe.
-+    kernel_main()
++    unsafe {
++        // Initialize the BSP driver subsystem.
++        if let Err(x) = bsp::driver::init() {
++            panic!("Error initializing BSP driver subsystem: {}", x);
++        }
++
++        // Initialize all device drivers.
++        driver::driver_manager().init_drivers();
++        // println! is usable from here on.
++
++        // Transition from unsafe to safe.
++        kernel_main()
++    }
 +}
 
 -    println!("[1] Chars written: {}", console().chars_written());
